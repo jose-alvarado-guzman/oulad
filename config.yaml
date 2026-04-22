@@ -1,0 +1,311 @@
+neo4j_info:
+  uri: bolt://localhost:7687
+  user: neo4j
+  password: Neo4jL3tM31n!
+data:
+  url: https://analyse.kmi.open.ac.uk/open-dataset/download
+  dir: Data
+cypher:
+  pre-load:
+    - CREATE CONSTRAINT nkMultipleDepravationIndex IF NOT EXISTS FOR (n:MultipleDepravationIndex) REQUIRE (n.imdBand) IS NODE KEY;
+    - CREATE CONSTRAINT nkAgeGroup IF NOT EXISTS FOR (n:AgeGroup) REQUIRE (n.ageBand) IS NODE KEY;
+    - CREATE CONSTRAINT nkRegion IF NOT EXISTS FOR (n:Region) REQUIRE (n.name) IS NODE KEY;
+    - CREATE CONSTRAINT nkEducationalMaterial IF NOT EXISTS FOR (n:EducationalMaterial) REQUIRE (n.id) IS NODE KEY;
+    - CREATE CONSTRAINT nkAssessment IF NOT EXISTS FOR (n:Assessment) REQUIRE (n.id) IS NODE KEY;
+    - CREATE CONSTRAINT nkCourse IF NOT EXISTS FOR (n:Course) REQUIRE (n.codePresentation, n.codeModule) IS NODE KEY;
+    - CREATE CONSTRAINT nkStudent IF NOT EXISTS FOR (n:Student) REQUIRE (n.id) IS NODE KEY;
+    - CREATE CONSTRAINT nkEducation IF NOT EXISTS FOR (n:Education) REQUIRE (n.name) IS NODE KEY;
+    - CREATE CONSTRAINT nkStudentRegistration IF NOT EXISTS FOR (n:StudentRegistration) REQUIRE (n.studentId, n.year, n.startMonth) IS NODE KEY;
+  load:
+    nodes:
+      Student:
+        dataframe: studentInfo
+        columns:
+          - id_student
+          - gender
+          - disability
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MERGE(n:Student {id:row.id_student})
+          SET
+            n.gender=row.gender
+          WITH n, row
+          WHERE row.disability = 'Y'
+          WITH *
+          SET n:$('DisableStudent')
+      StudentRegistration:
+        dataframe: studentInfo
+        columns:
+          - id_student
+          - code_presentation
+          - studied_credits
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          WITH *,
+            toInteger(left(row.code_presentation,4)) AS year,
+            right(row.code_presentation,1) AS term
+          WITH *,
+            CASE
+              WHEN term = 'B' THEN 'February'
+              WHEN term = 'J' THEN 'October'
+            END AS startMonth
+          MERGE(n:StudentRegistration {studentId:row.id_student, year:year, startMonth:startMonth})
+          SET
+            n.studiedCredits = row.studied_credits
+      Course:
+        dataframe: courses
+        columns:
+          - code_module
+          - code_presentation
+          - module_presentation_length
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MERGE(n:Course {codeModule:row.code_module, codePresentation:row.code_presentation})
+          SET
+            n.length = row.module_presentation_length
+      Assessment:
+        dataframe: assessments
+        columns:
+          - id_assessment
+          - assessment_type
+          - date
+          - weight
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MERGE(n:Assessment {id:row.id_assessment})
+          SET
+            n.assessmentType = row.assessment_type,
+            n.date = row.date,
+            n.weight = row.weight
+      EducationalMaterial:
+        dataframe: vle
+        columns:
+          - id_site
+          - activity_type
+          - week_from
+          - week_to
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MERGE(n:EducationalMaterial {id:row.id_site})
+          SET
+            n.activityType = row.activity_type,
+            n.weekFrom = row.week_from,
+            n.weekTo = row.week_to
+      Region:
+        dataframe: studentInfo
+        columns:
+          - region
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MERGE(n:Region {name:row.region})
+      MultipleDepravationIndex:
+        dataframe: studentInfo
+        columns:
+          - imd_band 
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MERGE(n:MultipleDepravationIndex {imdBand:row.imd_band})
+      AgeGroup:
+        dataframe: studentInfo
+        columns:
+          - age_band 
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MERGE(n:AgeGroup {ageBand:row.age_band})
+      Education:
+        dataframe: studentInfo
+        columns:
+          - highest_education
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MERGE(n:Education {name:row.highest_education})
+    relationships:
+      CONTAINS_COURSE:
+        dataframes:
+          studentInfo:
+            - id_student
+            - code_module
+            - code_presentation
+            - final_result
+            - num_of_prev_attempts
+          studentRegistration:
+            - id_student
+            - code_module
+            - code_presentation
+            - date_registration
+            - date_unregistration
+        key:
+          - id_student
+          - code_module
+          - code_presentation
+        sort-key:
+          - code_module
+          - code_presentation
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          WITH *,
+            toInteger(left(row.code_presentation,4)) AS year,
+            right(row.code_presentation,1) AS term
+          WITH *,
+            CASE
+              WHEN term = 'B' THEN 'February'
+              WHEN term = 'J' THEN 'October'
+            END AS startMonth
+          MATCH(n1:StudentRegistration {studentId:row.id_student, year:year, startMonth:startMonth})
+          MATCH(n2:Course {codeModule:row.code_module, codePresentation:row.code_presentation})
+          WHERE NOT EXISTS {(n1)-[:CONTAINS_COURSE]->(n2)}
+          CREATE (n1)-[r:CONTAINS_COURSE]->(n2)
+          SET
+            r.dateRegistration = row.date_registration,
+            r.dateUnregistration = row.date_unregistration,
+            r.finalResult = row.final_result,
+            r.numOfPrevAttempts = row.num_of_prev_attempts
+      WAS_ASSESSED_IN:
+        dataframes:
+          studentAssessment:
+        sort-key:
+          - id_assessment
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MATCH(n1:Student {id:row.id_student})
+          MATCH(n2:Assessment {id:row.id_assessment})
+          WHERE NOT EXISTS {(n1)-[:WAS_ASSESSED_IN]->(n2)}
+          CREATE (n1)-[r:WAS_ASSESSED_IN]->(n2)
+          SET
+            r.dateSubmitted = row.date_submitted,
+            r.isBanked = row.is_banked,
+            r.score = row.score
+      HAS_ASSESSMENT:
+        dataframes:
+          assessments:
+        sort-key:
+          - id_assessment
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MATCH(n1:Course {codeModule:row.code_module, codePresentation:row.code_presentation})
+          MATCH(n2:Assessment {id:row.id_assessment})
+          WHERE NOT EXISTS {(n1)-[:HAS_ASSESSMENT]->(n2)}
+          CREATE (n1)-[:HAS_ASSESSMENT]->(n2)
+      HAS_MATERIAL:
+        dataframes:
+          vle:
+        sort-key:
+          - code_module
+          - code_presentation
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MATCH(n1:Course {codeModule:row.code_module, codePresentation:row.code_presentation})
+          MATCH(n2:EducationalMaterial {id:row.id_site})
+          WHERE NOT EXISTS {(n1)-[:HAS_MATERIAL]->(n2)}
+          CREATE (n1)-[:HAS_MATERIAL]->(n2)
+      REVIEWED_MATERIAL:
+        dataframes:
+          studentVle:
+        sort-key:
+          - id_site
+        groupby:
+          group-cols:
+            - id_student
+            - id_site
+            - date
+          value-col: sum_click
+          functions:
+            - count
+            - sum
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MATCH(n1:Student {id:row.id_student})
+          MATCH(n2:EducationalMaterial {id:row.id_site})
+          MERGE(n1)-[r:REVIEWED_MATERIAL {date:row.date, sumClick:row.sum, count:row.count}]->(n2)
+      IN_AGE_GROUP:
+        dataframes:
+          studentInfo:
+            - id_student
+            - age_band
+        sort-key:
+          - age_band
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MATCH(n1:Student {id:row.id_student})
+          MATCH(n2:AgeGroup {ageBand:row.age_band})
+          WHERE NOT EXISTS {(n1)-[:IN_AGE_GROUP]->(n2)}
+          CREATE (n1)-[:IN_AGE_GROUP]->(n2)
+      IN_DEPRAVATION_GROUP:
+        dataframes:
+          studentInfo: 
+            - id_student
+            - imd_band
+        sort-key:
+          - imd_band
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MATCH(n1:Student {id:row.id_student})
+          MATCH(n2:MultipleDepravationIndex {imdBand:row.imd_band})
+          WHERE NOT EXISTS {(n1)-[:IN_DEPRAVATION_GROUP]->(n2)}
+          CREATE (n1)-[:IN_DEPRAVATION_GROUP]->(n2)
+      LIVE_IN_REGION:
+        dataframes:
+          studentInfo:
+            - id_student
+            - region
+        sort-key:
+          - region
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MATCH(n1:Student {id:row.id_student})
+          MATCH(n2:Region {name:row.region})
+          WHERE NOT EXISTS {(n1)-[:LIVE_IN_REGION]->(n2)}
+          CREATE (n1)-[:LIVE_IN_REGION]->(n2)
+      HAS_HIGHER_EDUCATION:
+        dataframes:
+          studentInfo:
+            - id_student
+            - highest_education
+        sort-key:
+          - highest_education
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          MATCH(n1:Student {id:row.id_student})
+          MATCH(n2:Education {name:row.highest_education})
+          WHERE NOT EXISTS {(n1)-[:HAS_HIGHER_EDUCATION]->(n2)}
+          CREATE (n1)-[:HAS_HIGHER_EDUCATION]->(n2)
+      WAS_REGISTERED:
+        dataframes:
+          studentInfo:
+            - id_student
+            - code_presentation
+        sort-key:
+          - code_presentation
+        cql: |
+          WITH $rows AS rows
+          UNWIND rows AS row
+          WITH *,
+            toInteger(left(row.code_presentation,4)) AS year,
+            right(row.code_presentation,1) AS term
+          WITH *,
+            CASE
+              WHEN term = 'B' THEN 'February'
+              WHEN term = 'J' THEN 'October'
+            END AS startMonth
+          MATCH(n1:Student {id:row.id_student})
+          MATCH(n2:StudentRegistration {studentId:row.id_student, year:year, startMonth:startMonth})
+          WHERE NOT EXISTS {(n1)-[:WAS_REGISTERED]->(n2)}
+          CREATE (n1)-[:WAS_REGISTERED]->(n2)
