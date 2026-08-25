@@ -1,13 +1,9 @@
-neo4j_info:
-  uri: bolt://localhost:7687
-  user: neo4j
-  password: ***REMOVED***
 data:
   url: https://analyse.kmi.open.ac.uk/open-dataset/download
   dir: Data
 cypher:
   pre-load:
-    - CREATE CONSTRAINT nkMultipleDepravationIndex IF NOT EXISTS FOR (n:MultipleDepravationIndex) REQUIRE (n.imdBand) IS NODE KEY;
+    - CREATE CONSTRAINT nkMultipleDeprivationIndex IF NOT EXISTS FOR (n:MultipleDeprivationIndex) REQUIRE (n.imdBand) IS NODE KEY;
     - CREATE CONSTRAINT nkAgeGroup IF NOT EXISTS FOR (n:AgeGroup) REQUIRE (n.ageBand) IS NODE KEY;
     - CREATE CONSTRAINT nkRegion IF NOT EXISTS FOR (n:Region) REQUIRE (n.name) IS NODE KEY;
     - CREATE CONSTRAINT nkEducationalMaterial IF NOT EXISTS FOR (n:EducationalMaterial) REQUIRE (n.id) IS NODE KEY;
@@ -17,6 +13,18 @@ cypher:
     - CREATE CONSTRAINT nkEducation IF NOT EXISTS FOR (n:Education) REQUIRE (n.name) IS NODE KEY;
     - CREATE CONSTRAINT nkStudentRegistration IF NOT EXISTS FOR (n:StudentRegistration) REQUIRE (n.studentId, n.year, n.startMonth) IS NODE KEY;
   load:
+    # Applied to every node label or relationship type that does not override
+    # them. parallel and batch-size are passed to
+    # Neo4jInstance.execute_write_query_with_data; dropna is the how argument
+    # used when dropping incomplete source rows.
+    defaults:
+      nodes:
+        parallel: true
+        dropna: all
+      relationships:
+        parallel: true
+        batch-size: 200000
+        dropna: all
     nodes:
       Student:
         dataframe: studentInfo
@@ -32,8 +40,7 @@ cypher:
             n.gender=row.gender
           WITH n, row
           WHERE row.disability = 'Y'
-          WITH *
-          SET n:$('DisableStudent')
+          SET n:DisabledStudent
       StudentRegistration:
         dataframe: studentInfo
         columns:
@@ -104,14 +111,14 @@ cypher:
           WITH $rows AS rows
           UNWIND rows AS row
           MERGE(n:Region {name:row.region})
-      MultipleDepravationIndex:
+      MultipleDeprivationIndex:
         dataframe: studentInfo
         columns:
           - imd_band 
         cql: |
           WITH $rows AS rows
           UNWIND rows AS row
-          MERGE(n:MultipleDepravationIndex {imdBand:row.imd_band})
+          MERGE(n:MultipleDeprivationIndex {imdBand:row.imd_band})
       AgeGroup:
         dataframe: studentInfo
         columns:
@@ -216,6 +223,9 @@ cypher:
           studentVle:
         sort-key:
           - id_site
+        # Loaded serially: the student to material writes are dense enough that
+        # concurrent batches contend on the same nodes.
+        parallel: false
         groupby:
           group-cols:
             - id_student
@@ -235,9 +245,23 @@ cypher:
         dataframes:
           studentInfo:
             - id_student
+            - code_presentation
             - age_band
         sort-key:
           - age_band
+        # 72 students report two different age_bands because they crossed a
+        # band boundary between presentations, and student 685015 reports two
+        # within a single presentation. Keeping the earliest presentation gives
+        # every student exactly one AgeGroup. Ordering by code_presentation is
+        # chronological because the year is a fixed four digits and B
+        # (February) sorts before J (October); the age_band tiebreak keeps the
+        # within-presentation conflict from depending on row order.
+        first-by:
+          group-cols:
+            - id_student
+          order-cols:
+            - code_presentation
+            - age_band
         cql: |
           WITH $rows AS rows
           UNWIND rows AS row
@@ -245,20 +269,23 @@ cypher:
           MATCH(n2:AgeGroup {ageBand:row.age_band})
           WHERE NOT EXISTS {(n1)-[:IN_AGE_GROUP]->(n2)}
           CREATE (n1)-[:IN_AGE_GROUP]->(n2)
-      IN_DEPRAVATION_GROUP:
+      IN_DEPRIVATION_GROUP:
         dataframes:
-          studentInfo: 
+          studentInfo:
             - id_student
             - imd_band
         sort-key:
           - imd_band
+        # A student with no imd_band gets no relationship, so a row is dropped
+        # when any column is null rather than only when all of them are.
+        dropna: any
         cql: |
           WITH $rows AS rows
           UNWIND rows AS row
           MATCH(n1:Student {id:row.id_student})
-          MATCH(n2:MultipleDepravationIndex {imdBand:row.imd_band})
-          WHERE NOT EXISTS {(n1)-[:IN_DEPRAVATION_GROUP]->(n2)}
-          CREATE (n1)-[:IN_DEPRAVATION_GROUP]->(n2)
+          MATCH(n2:MultipleDeprivationIndex {imdBand:row.imd_band})
+          WHERE NOT EXISTS {(n1)-[:IN_DEPRIVATION_GROUP]->(n2)}
+          CREATE (n1)-[:IN_DEPRIVATION_GROUP]->(n2)
       LIVE_IN_REGION:
         dataframes:
           studentInfo:

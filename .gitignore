@@ -139,8 +139,14 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+!.env.example
 .envrc
 .venv
+
+# Credential files kept outside .env, e.g. the ones the Aura console hands out
+*Credentials*.txt
+*credentials*.txt
 env/
 venv/
 ENV/

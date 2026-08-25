@@ -1,0 +1,26 @@
+# Dependencies of the ETL pipeline. In Colab, install these before running the
+# package:  !pip install -r requirements.txt
+#
+# Upper bounds are set at the next major version because pyneoinstance 4 and
+# neo4j 6 both carried breaking changes; loosen them deliberately, not by
+# accident.
+pyneoinstance>=4.0.3,<5
+pandas>=3.0,<4
+python-dotenv>=1.2,<2
+wget>=3.2
+
+# PyYAML is imported directly, to catch a parse error on config.yaml. neo4j
+# arrives with pyneoinstance and is pinned only to keep the driver on the major
+# version the Cypher was written against.
+PyYAML>=6.0,<7
+neo4j>=6.2,<7
+
+# Optional. Rust extension for the Neo4j driver: a drop-in speedup for the
+# large relationship loads, needing no code change. Left commented so a
+# missing wheel cannot break the install.
+# neo4j-rust-ext>=6.2
+
+# Aura Graph Analytics work has its own dependencies (neo4j-viz and whatever
+# the analytics import) and its own credentials, AGA_SECRETS in
+# oulad/credentials.py. Keep them out of this file so an ETL-only environment
+# stays minimal.

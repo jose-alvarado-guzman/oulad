@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oulad"
+version = "0.1.0"
+description = "Load the OULAD dataset into Neo4j as a property graph"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+dependencies = [
+    "pyneoinstance>=4.0.3,<5",
+    "pandas>=3.0,<4",
+    "python-dotenv>=1.2,<2",
+    "wget>=3.2",
+    "PyYAML>=6.0,<7",
+    "neo4j>=6.2,<7",
+]
+
+[project.optional-dependencies]
+# Rust extension for the Neo4j driver: a drop-in speedup for the large
+# relationship loads.
+fast = ["neo4j-rust-ext>=6.2"]
+
+[project.scripts]
+oulad-load = "oulad.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# Install with `pip install -e .` rather than a plain `pip install .`. The
+# pipeline locates config.yaml, Data/, Logs/ and Result/ relative to the
+# package directory, which only resolves to the repository root while the
+# install points back at this checkout.
