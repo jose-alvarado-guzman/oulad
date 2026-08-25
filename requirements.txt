@@ -14,12 +14,17 @@ python-dotenv>=1.2,<2
 PyYAML>=6.0,<7
 neo4j>=6.2,<7
 
-# Optional. Rust extension for the Neo4j driver: a drop-in speedup for the
-# large relationship loads, needing no code change. Left commented so a
-# missing wheel cannot break the install.
-# neo4j-rust-ext>=6.2
+# Not imported here, but pinned to work around an upstream bound that is too
+# loose. pyneoinstance imports neo4j-viz, whose widget module evaluates
+# traitlets.Instance[...] at import time, and that only became subscriptable in
+# traitlets 5.10. neo4j-viz asks for traitlets>=5,<6, so an environment already
+# holding 5.7 (Colab pins exactly that) keeps it and `import pyneoinstance`
+# dies with "type 'Instance' is not subscriptable".
+traitlets>=5.10,<6
 
-# Aura Graph Analytics work has its own dependencies (neo4j-viz and whatever
-# the analytics import) and its own credentials, AGA_SECRETS in
-# oulad/credentials.py. Keep them out of this file so an ETL-only environment
-# stays minimal.
+# neo4j-rust-ext is a hard requirement of pyneoinstance rather than an optional
+# speedup, so pip installs it whether or not it is named here.
+
+# Aura Graph Analytics work has its own credentials, AGA_SECRETS in
+# oulad/credentials.py, and will have its own dependencies. Keep those out of
+# this file so an ETL-only environment stays minimal.

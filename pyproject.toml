@@ -15,12 +15,15 @@ dependencies = [
     "python-dotenv>=1.2,<2",
     "PyYAML>=6.0,<7",
     "neo4j>=6.2,<7",
+    # Not imported here. pyneoinstance pulls in neo4j-viz, whose widget module
+    # evaluates traitlets.Instance[...] at import time, and that only became
+    # subscriptable in traitlets 5.10. neo4j-viz asks for traitlets>=5,<6, so an
+    # environment already holding 5.7 keeps it and importing pyneoinstance fails
+    # with "type 'Instance' is not subscriptable". Colab pins exactly 5.7.1.
+    "traitlets>=5.10,<6",
 ]
 
 [project.optional-dependencies]
-# Rust extension for the Neo4j driver: a drop-in speedup for the large
-# relationship loads.
-fast = ["neo4j-rust-ext>=6.2"]
 dev = ["pytest>=8"]
 
 [tool.pytest.ini_options]
