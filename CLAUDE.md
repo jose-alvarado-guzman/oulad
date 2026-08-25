@@ -28,7 +28,7 @@ Use `pip install -e .`, not `pip install .`: the pipeline finds `config.yaml`, `
 
 Virtualenv in use: `~/.virtualenvs/OULAD` (Python 3.13). Dependencies are pinned in `requirements.txt` and `pyproject.toml` with upper bounds at the next major version — pyneoinstance 4 and neo4j 6 both carried breaking changes. `neo4j-rust-ext` is an optional drop-in driver speedup (`pip install -e '.[fast]'`).
 
-In Colab: clone the repo, `!pip install -r requirements.txt`, add the secrets in the notebook's Secrets panel (granting the notebook access to each), then `!cd src && python -m oulad`.
+In Colab, open `src/aga/aura_graph_analytics.ipynb` — it clones the repo, installs, resolves credentials from the Secrets panel, runs the suite, runs the ETL, and checks the graph. One thing it does deliberately: it calls `main()` **in the kernel** rather than `!python -m oulad`, because Colab's secret store is only reachable from the kernel process. A subprocess can import `google.colab`, but its `userdata.get` has no channel back to the notebook, so resolution would fall through to a `.env` that a fresh clone doesn't have. Keep that in mind before "tidying" it into a shell call.
 
 Credentials come in **two required groups**, both defined in `credentials.py`:
 
