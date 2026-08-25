@@ -27,6 +27,12 @@ def test_cypher_only_matches_declared_labels(config):
     matched = set(re.findall(r'MATCH\(n\d:(\w+)', '\n'.join(queries)))
     assert matched <= declared, matched - declared
 
+def test_the_dataset_url_is_https_and_names_an_archive(config):
+    """The previous address redirected to a homepage and served html."""
+    url = config['data']['url']
+    assert url.startswith('https://')
+    assert url.endswith('.zip')
+
 def test_the_deprivation_spelling_is_not_reintroduced(config):
     """imd_band is the Index of Multiple Deprivation, not Depravation."""
     text = str(config)

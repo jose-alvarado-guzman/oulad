@@ -1,5 +1,9 @@
 data:
-  url: https://analyse.kmi.open.ac.uk/open-dataset/download
+  # The old analyse.kmi.open.ac.uk/open-dataset/download address now redirects
+  # to the OU Analyse homepage and serves html, so a cold start could not fetch
+  # the data. This is the current archive, linked from
+  # https://research.stem.open.ac.uk/ouanalyse/dataset/
+  url: https://schools.stem.open.ac.uk/cdn/files/anonymisedData.zip
   dir: Data
 cypher:
   pre-load:

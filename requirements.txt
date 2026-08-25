@@ -7,7 +7,6 @@
 pyneoinstance>=4.0.3,<5
 pandas>=3.0,<4
 python-dotenv>=1.2,<2
-wget>=3.2
 
 # PyYAML is imported directly, to catch a parse error on config.yaml. neo4j
 # arrives with pyneoinstance and is pinned only to keep the driver on the major

@@ -9,13 +9,19 @@ read_data(data_path:str, logger:logging.Logger) -> Dict[str, DataFrame]
 """
 
 import os
-import wget
 import shutil
 import zipfile
 import logging
 import tempfile
+import urllib.request
 import pandas as pd
 from typing import Dict, List
+
+# Seconds a socket operation may stall before the download is abandoned. The
+# point of the timeout is that a server which accepts the connection and then
+# goes quiet cannot hang the pipeline indefinitely.
+DOWNLOAD_TIMEOUT = 60
+CHUNK_SIZE = 1024 * 1024
 
 def _csv_files(data_path:str) -> List[str]:
     """List the csv files held in a directory.
@@ -36,6 +42,37 @@ def _csv_files(data_path:str) -> List[str]:
         f for f in os.listdir(data_path) if f.lower().endswith('.csv')
     )
 
+def _download(url:str,
+              dest_dir:str,
+              logger: logging.Logger,
+              timeout:int = DOWNLOAD_TIMEOUT
+             ) -> str:
+    """Stream the source archive into a directory.
+
+    Parameters
+    ----------
+    url : str
+        URL of the archive to fetch.
+    dest_dir : str
+        Directory to write the archive into.
+    logger : Logger
+        Logger use to log the pipeline progress.
+    timeout : int, optional
+        Seconds a socket operation may stall before the download is abandoned.
+
+    Returns
+    -------
+    str
+        Path of the downloaded archive.
+    """
+    archive = os.path.join(dest_dir, 'oulad.zip')
+    with urllib.request.urlopen(url, timeout=timeout) as response:
+        with open(archive, 'wb') as handle:
+            shutil.copyfileobj(response, handle, CHUNK_SIZE)
+    size = os.path.getsize(archive)
+    logger.info(f'Downloaded {size:,.0f} bytes from {url}')
+    return archive
+
 def get_data(url:str,
              data_path:str,
              logger: logging.Logger
@@ -47,6 +84,8 @@ def get_data(url:str,
     Both the download and the extraction happen in a temporary directory that
     is discarded on failure, so an interrupted run cannot leave a partially
     extracted directory behind for the next run to mistake for a complete one.
+    The transfer carries a socket timeout, so a server that stalls mid-stream
+    raises rather than hanging the pipeline.
 
     Parameters
     ----------
@@ -66,7 +105,7 @@ def get_data(url:str,
         return
     logger.info('Downloading and extracting files')
     with tempfile.TemporaryDirectory() as work_dir:
-        archive = wget.download(url, out=work_dir)
+        archive = _download(url, work_dir, logger)
         extract_dir = os.path.join(work_dir, 'extracted')
         with zipfile.ZipFile(archive, 'r') as zip_ref:
             zip_ref.extractall(extract_dir)
