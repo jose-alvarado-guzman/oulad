@@ -37,8 +37,8 @@ oulad-load = "oulad.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-# Only the package ships. Without this, src/aga would be picked up as a
-# namespace package, since namespace discovery is on by default here.
+# Only the package ships. Namespace discovery is on by default here, so any
+# other directory added under src/ would otherwise be picked up too.
 include = ["oulad*"]
 
 # Install with `pip install -e .` rather than a plain `pip install .`. The
