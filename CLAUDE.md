@@ -8,7 +8,16 @@ A one-shot ETL pipeline that downloads the OULAD (Open University Learning Analy
 
 ## Commands
 
-There is no test suite or linter. The pipeline runs as a module from `src/`, which must be the working directory or on `PYTHONPATH` unless the package is installed:
+Tests (no linter):
+
+```bash
+pip install -e '.[dev]' && python -m pytest      # or just: python -m pytest
+python -m pytest tests/test_relationships.py -k first_by    # one module / one test
+```
+
+The whole suite is offline — no Neo4j, no network — and runs in under a second. `pythonpath = ["src"]` in `pyproject.toml` means it works without installing the package. Tests needing the real CSVs skip themselves when `Data/` is absent, since it's gitignored. Neo4j is faked by a class exposing just `get_node_label_freq` / `get_rela_type_freq`; the Colab secrets store is stubbed via `sys.modules` in the `colab` fixture.
+
+The pipeline runs as a module from `src/`, which must be the working directory or on `PYTHONPATH` unless the package is installed:
 
 ```bash
 cd src && python -m oulad          # no install needed
@@ -79,4 +88,4 @@ To validate config edits without a database: load `config.yaml`, then check ever
 
 `load_nodes_qa` / `load_relas_qa` run automatically after each load phase. They compare the driver's reported creation counts against `get_node_label_freq` / `get_rela_type_freq` from the live database and write a timestamped CSV to `Result/`. `qaFlag` is `toLoad - postCount`; nonzero means the graph doesn't hold what the dataframes contained (expected for labels/types that dedupe, e.g. distinct-value dimension nodes). A label or type absent from the frequency table is counted as 0 rather than left as `NaN`, so a total load failure shows up as the full row count instead of a blank cell. Note it compares *counts only* — it cannot detect a MERGE that silently overwrote a property.
 
-`get_logger` attaches handlers only on the first call and sets `propagate = False`, so re-entering `main` from a notebook cell doesn't emit every record two or three times. Logs go to both stdout and `Logs/import.log` (appended, never rotated).
+`get_logger` configures once and sets `propagate = False`, so re-entering `main` from a notebook cell doesn't emit every record two or three times. Idempotence keys on a private `_oulad_configured` marker rather than on whether the logger has handlers — with `propagate = False`, pytest attaches its own capture handler directly to this logger, and a presence check would mistake that for our own work and skip configuration entirely. Logs go to both stdout and `Logs/import.log` (appended, never rotated).

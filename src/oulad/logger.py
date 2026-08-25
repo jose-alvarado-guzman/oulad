@@ -29,7 +29,10 @@ def get_logger(dir_name:str) -> logging.Logger:
         The logger to use for logging the import events.
     """
     logger = logging.getLogger('OULAD')
-    if logger.handlers:
+    # Keyed on our own marker rather than on whether any handler is attached:
+    # pytest, and anything else that captures logs, attaches handlers of its
+    # own, and those must not be mistaken for this function's work.
+    if getattr(logger, '_oulad_configured', False):
         return logger
     logger.setLevel(logging.INFO)
     # Colab attaches a handler to the root logger, which would print every
@@ -46,4 +49,5 @@ def get_logger(dir_name:str) -> logging.Logger:
     console_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
+    logger._oulad_configured = True
     return logger

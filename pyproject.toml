@@ -22,6 +22,16 @@ dependencies = [
 # Rust extension for the Neo4j driver: a drop-in speedup for the large
 # relationship loads.
 fast = ["neo4j-rust-ext>=6.2"]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The package is not installed by default, so put src on the path for tests.
+pythonpath = ["src"]
+addopts = "-q"
+markers = [
+    "requires_data: needs the gitignored Data/ directory to be populated",
+]
 
 [project.scripts]
 oulad-load = "oulad.__main__:main"
