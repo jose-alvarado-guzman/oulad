@@ -32,6 +32,17 @@ Virtualenv in use: `~/.virtualenvs/OULAD` (Python 3.13). Dependencies are pinned
 
 Two notebooks live in `notebooks/`. `oulad_data_load.ipynb` runs the ETL; `aga_student_cohorts.ipynb` opens an Aura Graph Analytics session over the loaded graph (node similarity → Louvain cohorts → outcome cross-tab → degree centrality → write-back), with `graphdatascience` pinned exactly because its session API is still in alpha. A session is billed compute separate from AuraDB, so it carries a 2-hour TTL and a delete step.
 
+Two AGA traps, both of which return plausible zeros rather than failing, and both now
+guarded in the notebook. **A `node_labels` filter induces a subgraph**: passing
+`node_labels=['EducationalMaterial']` to an algorithm over `REVIEWED_MATERIAL` discards every
+relationship, because each one's source is a `Student`, so degree centrality scored every
+material 0. Score the whole graph and filter the results instead. **A missing relationship
+weight is not an error either** — it is treated as zero. Step 6 therefore prints
+`G.relationship_properties()` and aborts if the weight is absent, and step 11 cross-checks the
+session's weighted degree against `sum(r.sumClick)` from the database; they must agree to the
+click. That cross-check is what caught the `node_labels` bug after two wrong diagnoses (a
+dropped property, then a missing inverse index — both disproved by probing a live session).
+
 `requirements-aga.txt` deliberately does **not** include `-r requirements.txt`. The AGA notebooks use the `neo4j` driver and `graphdatascience` directly and touch this repo only to import `oulad.credentials`, which needs nothing but `python-dotenv`. Adding the ETL stack would install pyneoinstance, neo4j-viz, pyvis, traitlets, wget and PyYAML for nothing — and neo4j-viz is what forces the `traitlets>=5.10` floor, so the AGA notebooks avoid that trap entirely and need no session restart after installing. They still clone the repo, but only so the secret names, resolution order and instance-id derivation live in one place.
 
 In Colab, open `notebooks/oulad_data_load.ipynb` — it clones the repo, installs, resolves credentials from the Secrets panel, runs the ETL, and checks the graph. It deliberately does not run the test suite; that stays a local concern. One thing it does deliberately: it calls `main()` **in the kernel** rather than `!python -m oulad`, because Colab's secret store is only reachable from the kernel process. A subprocess can import `google.colab`, but its `userdata.get` has no channel back to the notebook, so resolution would fall through to a `.env` that a fresh clone doesn't have. Keep that in mind before "tidying" it into a shell call.
