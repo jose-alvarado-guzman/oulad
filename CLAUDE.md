@@ -67,13 +67,19 @@ between alphas (`dimension` → `embedding_dimension`, `max_elapsed_time` → `l
 Numeric event features go in via `event_node_feature_vector_property` as a **list**, even for one
 number — omitting it means click intensity never reaches the algorithm.
 
-**Two results, and both belong in any summary.** Module GGG, held-out 30% split: on the whole
-journey the embedding reaches 0.9280 accuracy (0.9308 with volume) against a 0.6393 majority
-rate, flagging 83.7% of at-risk students. Cut at `CUTOFF_DAY = 30`, every variant collapses to
-0.6348–0.6455 against a 0.6462 floor, and recall falls to 32.3%. The untruncated score is
-hindsight — the embedding reads *when activity stopped*, which for a withdrawal is the label. So
-it is a strong retrospective classifier and a worthless early-warning one, and quoting the first
-number alone is how you end up believing you have a 93% early-warning system.
+**Quote the cutoff sweep, never a single number.** Step 14 sweeps cutoffs by projecting *day
+prefixes* of one chain — a prefix by day of a day-ordered chain is the same graph a truncated
+build produces, verified by reproducing both the day-30 and full-journey runs exactly. Module GGG
+accuracy, journey embedding: **0.6348 at day 30, 0.6892 at day 60, 0.7127 at day 90, 0.9280 on
+the whole journey**, against a ~0.64 majority floor throughout.
+
+Two conclusions follow, and neither survives on its own. The untruncated 0.93 is mostly
+hindsight — the embedding reads *when activity stopped*, which for a withdrawal is the label — so
+it is a strong retrospective classifier and a poor early-warning one. But from day 60 the
+embedding beats click volume by **+8.6 accuracy points** (0.6892 against 0.6029, where volume is
+*below* the floor), so in the window where an intervention is still possible the sequence carries
+signal no aggregate does. That is the one place in this repository where a graph embedding earns
+its cost.
 
 When changing `CUTOFF_DAY`, the cutoff must reach **every** feature. It gates the chain build,
 `LABEL_QUERY`'s `logClicks`, and `BASELINE_QUERY`; missing any one pits a truncated feature
