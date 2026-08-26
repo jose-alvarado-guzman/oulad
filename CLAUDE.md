@@ -32,6 +32,8 @@ Virtualenv in use: `~/.virtualenvs/OULAD` (Python 3.13). Dependencies are pinned
 
 In Colab, open `notebooks/oulad_data_load.ipynb` — it clones the repo, installs, resolves credentials from the Secrets panel, runs the ETL, and checks the graph. It deliberately does not run the test suite; that stays a local concern. One thing it does deliberately: it calls `main()` **in the kernel** rather than `!python -m oulad`, because Colab's secret store is only reachable from the kernel process. A subprocess can import `google.colab`, but its `userdata.get` has no channel back to the notebook, so resolution would fall through to a `.env` that a fresh clone doesn't have. Keep that in mind before "tidying" it into a shell call.
 
+Two staleness traps the notebook now guards against, both of which present as the *old* code running with no error. Step 1 does `fetch` + `reset --hard origin/main` rather than `pull --ff-only`, because a `--depth 1` clone cannot always fast-forward and would leave the checkout behind. Step 3 deletes `oulad*` from `sys.modules` before importing, because a git pull cannot change what Python has already imported — a renamed constant would otherwise keep its old value for the whole session. Step 3 also prints `ETL_SECRETS` and `AGA_SECRETS` so a stale session is visible at a glance.
+
 Credentials come in **two required groups**, both defined in `credentials.py`:
 
 | Group | Keys | Needed by |

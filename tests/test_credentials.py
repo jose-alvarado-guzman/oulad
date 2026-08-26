@@ -131,3 +131,41 @@ def test_the_secret_groups_do_not_overlap():
     assert set(credentials.ALL_SECRETS) == (
         set(ETL_SECRETS) | set(AGA_SECRETS) | set(credentials.OPTIONAL_SECRETS)
     )
+
+def _capturing_logger(name):
+    """A logger that records everything, isolated from the rest of the suite."""
+    import logging
+    records = []
+
+    class Capture(logging.Handler):
+        def emit(self, record):
+            records.append(record)
+
+    log = logging.getLogger(name)
+    log.handlers = [Capture()]
+    log.propagate = False
+    log.setLevel(logging.DEBUG)
+    return log, records
+
+def test_secrets_outside_the_enforced_group_stay_below_info(
+        clean_env, colab, missing_env_file):
+    """An absent AGA key during an ETL run must not read like a failure."""
+    import logging
+    log, records = _capturing_logger('oulad-tests-levels')
+    colab.store.update(ETL_VALUES)          # the AGA group is simply not there
+    load_credentials(log, env_file=missing_env_file)
+    noisy = [r.getMessage() for r in records
+             if r.levelno >= logging.INFO and 'Could not read' in r.getMessage()]
+    assert noisy == [], noisy
+    # the information is still available, just at debug
+    debug = [r.getMessage() for r in records if r.levelno == logging.DEBUG]
+    assert any('AURA_CLIENT_SECRET' in message for message in debug), debug
+
+def test_a_missing_required_secret_still_warns(clean_env, colab, missing_env_file):
+    import logging
+    log, records = _capturing_logger('oulad-tests-levels')
+    colab.store.update({'NEO4J_URI': 'neo4j+s://x', 'NEO4J_USERNAME': 'neo4j'})
+    with pytest.raises(MissingCredentialsError):
+        load_credentials(log, env_file=missing_env_file)
+    warned = [r.getMessage() for r in records if r.levelno >= logging.WARNING]
+    assert any('NEO4J_PASSWORD' in message for message in warned), warned

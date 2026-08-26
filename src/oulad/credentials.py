@@ -241,7 +241,10 @@ def load_credentials(
         for name in names:
             if os.getenv(name):
                 continue
-            level = logging.WARNING if name in required else logging.INFO
+            # An unreadable secret outside the enforced group is not a problem
+            # for this run, and logging it at info reads like a failure. The
+            # caller can see what did resolve from the returned source string.
+            level = logging.WARNING if name in required else logging.DEBUG
             value = _read_colab_secret(userdata, name, logger, level)
             if value:
                 os.environ[name] = value
