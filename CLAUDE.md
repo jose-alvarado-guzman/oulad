@@ -99,6 +99,11 @@ In Colab, open `notebooks/oulad_data_load.ipynb` — it clones the repo, install
 
 Two staleness traps the notebook now guards against, both of which present as the *old* code running with no error. Step 1 does `fetch` + `reset --hard origin/main` rather than `pull --ff-only`, because a `--depth 1` clone cannot always fast-forward and would leave the checkout behind. Step 3 deletes `oulad*` from `sys.modules` before importing, because a git pull cannot change what Python has already imported — a renamed constant would otherwise keep its old value for the whole session. Step 3 also prints `ETL_SECRETS` and `AGA_SECRETS` so a stale session is visible at a glance.
 
+`docs/model-selection.md` is the write-up of the whole model-selection process: every method
+tried, the numbers each produced, the conclusions that turned out to be wrong and what they cost.
+Read it before adding another model — several apparently good results in this repository are
+beaten by one logged aggregate, and the document says which.
+
 Credentials come in **two required groups**, both defined in `credentials.py`:
 
 | Group | Keys | Needed by |
