@@ -37,7 +37,7 @@ Credentials come in **two required groups**, both defined in `credentials.py`:
 | Group | Keys | Needed by |
 | --- | --- | --- |
 | `ETL_SECRETS` | `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` | the loading pipeline |
-| `AGA_SECRETS` | `CLIENT_SECRET`, `CLIENT_ID`, `PROJECT_ID` | Aura Graph Analytics, run against the loaded graph afterwards |
+| `AGA_SECRETS` | `AURA_CLIENT_SECRET`, `AURA_CLIENT_ID`, `AURA_PROJECT_ID` | Aura Graph Analytics, run against the loaded graph afterwards |
 
 `NEO4J_DATABASE` (`OPTIONAL_SECRETS`) belongs to neither. `main` resolves it once and passes it to every write and QA call, so a load and the counts that verify it can't target different databases; unset means the driver's default. A group is enforced only by the code that needs it: `load_credentials` validates `ETL_SECRETS` by default, so the ETL runs fine with the AGA keys absent — a successful load is not evidence the AGA half is configured. Analytics code should call `load_credentials(logger, required=AGA_SECRETS)`. Either way every known secret is resolved into `os.environ`, so the group that wasn't enforced is still readable. `load_credentials` resolves them from — in precedence order — the existing process environment, the Google Colab secrets store, then a `.env` file. `src/.env.example` is the tracked template; `src/.env` itself is gitignored (as is anything else matching `.env.*`, with `.env.example` negated). `load_credentials` writes what it finds into `os.environ`, which is why `main` can build the single `Neo4jInstance` from plain `os.getenv`; add new secrets to `credentials.py` rather than threading a config object through.
 

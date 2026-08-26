@@ -55,7 +55,7 @@ def test_the_error_names_the_group_that_is_missing(
         )
     message = str(excinfo.value)
     assert 'Aura Graph Analytics' in message
-    assert 'CLIENT_SECRET' in message
+    assert 'AURA_CLIENT_SECRET' in message
     assert 'NEO4J_URI' not in message
 
 def test_the_error_names_both_groups_when_both_are_required(
@@ -73,7 +73,7 @@ def test_the_etl_does_not_require_the_aga_group(
         tmp_path, logger, clean_env, no_colab):
     """A load must run in an environment configured only for loading."""
     load_credentials(logger, env_file=_env_file(tmp_path, **ETL_VALUES))
-    assert os.getenv('CLIENT_SECRET') is None
+    assert os.getenv('AURA_CLIENT_SECRET') is None
 
 def test_reads_from_the_colab_store(logger, clean_env, colab, missing_env_file):
     colab.store.update(ETL_VALUES | {'NEO4J_PASSWORD': 'from-colab'})
@@ -109,9 +109,9 @@ def test_falls_back_per_secret_when_colab_access_is_denied(
 
 def test_resolves_the_unenforced_group_too(logger, clean_env, colab, missing_env_file):
     """An ETL run should still leave the AGA keys readable."""
-    colab.store.update(ETL_VALUES | {'CLIENT_ID': 'ci', 'CLIENT_SECRET': 'cs'})
+    colab.store.update(ETL_VALUES | {'AURA_CLIENT_ID': 'ci', 'AURA_CLIENT_SECRET': 'cs'})
     load_credentials(logger, env_file=missing_env_file)
-    assert os.environ['CLIENT_ID'] == 'ci'
+    assert os.environ['AURA_CLIENT_ID'] == 'ci'
 
 def test_optional_database_is_never_required(logger, clean_env, colab, missing_env_file):
     colab.store.update(ETL_VALUES)
@@ -121,9 +121,9 @@ def test_optional_database_is_never_required(logger, clean_env, colab, missing_e
 def test_get_secret_prefers_the_environment_then_colab_then_default(
         monkeypatch, logger, clean_env, colab):
     monkeypatch.setenv('NEO4J_URI', 'bolt://exported')
-    colab.store['CLIENT_ID'] = 'from-colab'
+    colab.store['AURA_CLIENT_ID'] = 'from-colab'
     assert get_secret('NEO4J_URI', logger) == 'bolt://exported'
-    assert get_secret('CLIENT_ID', logger) == 'from-colab'
+    assert get_secret('AURA_CLIENT_ID', logger) == 'from-colab'
     assert get_secret('NOT_A_SECRET', logger, default='fallback') == 'fallback'
 
 def test_the_secret_groups_do_not_overlap():

@@ -41,7 +41,7 @@ from dotenv import load_dotenv, find_dotenv
 ETL_SECRETS = ['NEO4J_URI', 'NEO4J_USERNAME', 'NEO4J_PASSWORD']
 # Required to run Aura Graph Analytics against the loaded graph. The ETL never
 # reads these, so a load can succeed while they are absent.
-AGA_SECRETS = ['CLIENT_SECRET', 'CLIENT_ID', 'PROJECT_ID']
+AGA_SECRETS = ['AURA_CLIENT_SECRET', 'AURA_CLIENT_ID', 'AURA_PROJECT_ID']
 # Required by neither group. NEO4J_DATABASE falls back to the neo4j default in
 # the post-load QA queries, but is worth setting explicitly for the analytics.
 OPTIONAL_SECRETS = ['NEO4J_DATABASE']
