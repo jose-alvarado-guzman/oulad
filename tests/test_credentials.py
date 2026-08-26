@@ -169,3 +169,36 @@ def test_a_missing_required_secret_still_warns(clean_env, colab, missing_env_fil
         load_credentials(log, env_file=missing_env_file)
     warned = [r.getMessage() for r in records if r.levelno >= logging.WARNING]
     assert any('NEO4J_PASSWORD' in message for message in warned), warned
+
+class TestAuraInstanceId:
+    """The session attaches to an instance; the id comes from the URI."""
+
+    def test_derives_it_from_an_aura_uri(self, monkeypatch, logger):
+        monkeypatch.delenv('AURA_INSTANCEID', raising=False)
+        monkeypatch.setenv('NEO4J_URI', 'neo4j+s://a1b2c3d4.databases.neo4j.io')
+        assert credentials.aura_instance_id(logger) == 'a1b2c3d4'
+
+    def test_handles_the_ssc_and_plain_schemes(self, monkeypatch, logger):
+        monkeypatch.delenv('AURA_INSTANCEID', raising=False)
+        for uri, expected in [
+            ('neo4j+ssc://deadbeef.databases.neo4j.io', 'deadbeef'),
+            ('neo4j://localhost.example.com', 'localhost'),
+        ]:
+            monkeypatch.setenv('NEO4J_URI', uri)
+            assert credentials.aura_instance_id(logger) == expected
+
+    def test_an_explicit_value_wins(self, monkeypatch, logger):
+        monkeypatch.setenv('NEO4J_URI', 'neo4j+s://derived.databases.neo4j.io')
+        monkeypatch.setenv('AURA_INSTANCEID', 'explicit')
+        assert credentials.aura_instance_id(logger) == 'explicit'
+
+    def test_returns_none_when_undeterminable(self, monkeypatch, logger):
+        monkeypatch.delenv('AURA_INSTANCEID', raising=False)
+        monkeypatch.setenv('NEO4J_URI', 'bolt://localhost:7687')
+        assert credentials.aura_instance_id(logger) is None
+
+    def test_an_explicit_uri_argument_is_used(self, monkeypatch, logger):
+        monkeypatch.delenv('AURA_INSTANCEID', raising=False)
+        monkeypatch.delenv('NEO4J_URI', raising=False)
+        assert credentials.aura_instance_id(
+            logger, uri='neo4j+s://passed-in.databases.neo4j.io') == 'passed-in'

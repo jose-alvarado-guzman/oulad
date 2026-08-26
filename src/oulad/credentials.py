@@ -24,6 +24,8 @@ def get_secret(name:str, logger:logging.Logger, default:str=None) -> str
 def load_credentials(logger:logging.Logger, env_file:str=None,
                      required:List[str]=None, names:List[str]=None) -> str
     Populate os.environ with the credentials and describe their source.
+def aura_instance_id(logger:logging.Logger, uri:str=None) -> str
+    Resolve the Aura instance id, deriving it from the connection URI.
 
 Exceptions
 ----------
@@ -32,6 +34,7 @@ MissingCredentialsError
 """
 
 import os
+import re
 import logging
 from pathlib import Path
 from typing import List, Optional
@@ -44,10 +47,16 @@ ETL_SECRETS = ['NEO4J_URI', 'NEO4J_USERNAME', 'NEO4J_PASSWORD']
 AGA_SECRETS = ['AURA_CLIENT_SECRET', 'AURA_CLIENT_ID', 'AURA_PROJECT_ID']
 # Required by neither group. NEO4J_DATABASE falls back to the neo4j default in
 # the post-load QA queries, but is worth setting explicitly for the analytics.
-OPTIONAL_SECRETS = ['NEO4J_DATABASE']
+# AURA_INSTANCEID identifies the AuraDB instance a graph analytics session
+# attaches to; it is optional because it is the first label of an Aura
+# connection URI, so aura_instance_id can derive it when absent, but it is
+# honoured when set in case the URI is ever a custom hostname.
+OPTIONAL_SECRETS = ['NEO4J_DATABASE', 'AURA_INSTANCEID']
 ALL_SECRETS = ETL_SECRETS + AGA_SECRETS + OPTIONAL_SECRETS
 SECRET_GROUPS = {'ETL': ETL_SECRETS, 'Aura Graph Analytics': AGA_SECRETS}
 PACKAGE_ENV_FILE = Path(__file__).resolve().parent.parent / '.env'
+# neo4j+s://<instance-id>.databases.neo4j.io
+AURA_URI_PATTERN = re.compile(r'^neo4j(?:\+s|\+ssc)?://([A-Za-z0-9-]+)\.', re.IGNORECASE)
 
 class MissingCredentialsError(Exception):
     """Raised when a required credential could not be resolved."""
@@ -198,6 +207,43 @@ def get_secret(
             os.environ[name] = value
             return value
     return default
+
+def aura_instance_id(
+        logger: logging.Logger,
+        uri: Optional[str] = None
+    ) -> Optional[str]:
+    """Resolve the id of the AuraDB instance to attach a session to.
+
+    A graph analytics session is opened against a specific instance. The id is
+    the first label of an Aura connection URI, so it is derived from NEO4J_URI
+    rather than demanded as a separate secret, while an explicit
+    AURA_INSTANCEID still wins.
+
+    Parameters
+    ----------
+    logger : Logger
+        Logger use to log the pipeline progress.
+    uri : str, optional
+        Connection URI to derive from. Defaults to NEO4J_URI.
+
+    Returns
+    -------
+    str or None
+        The instance id, or None when it is neither set nor derivable.
+    """
+    explicit = os.getenv('AURA_INSTANCEID')
+    if explicit:
+        return explicit
+    match = AURA_URI_PATTERN.match(uri or os.getenv('NEO4J_URI') or '')
+    if match:
+        derived = match.group(1)
+        logger.info(f'Derived the Aura instance id {derived} from the connection URI')
+        return derived
+    logger.warning(
+        'Could not determine the Aura instance id: AURA_INSTANCEID is unset '
+        'and the connection URI is not an Aura address.'
+    )
+    return None
 
 def load_credentials(
         logger: logging.Logger,

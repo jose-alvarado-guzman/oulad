@@ -1,0 +1,15 @@
+# Dependencies for the Aura Graph Analytics notebooks. In Colab:
+#     !pip install -r requirements-aga.txt
+#
+# The ETL requirements come along because the notebooks import
+# oulad.credentials to resolve secrets the same way the loader does.
+-r requirements.txt
+
+# Opens and drives a graph analytics session. Version 2 is what carries the
+# session API (GdsSessions, AuraAPICredentials, DbmsConnectionInfo), and it is
+# still in alpha, so this is pinned exactly rather than to a range: the
+# surface can move between alphas. Verified against 2.0a5.
+graphdatascience==2.0a5
+
+# Charts in the notebooks.
+matplotlib>=3.8,<4
