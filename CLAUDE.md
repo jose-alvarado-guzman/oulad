@@ -57,15 +57,29 @@ The embedding is worth **+0.4 accuracy points**, i.e. nothing. Keep the ablation
 it the notebook reads as though 128 dimensions bought the +5.7 points over the median-threshold
 baseline, when a random forest on one logged feature did.
 
-The FastPath predecessor, `aga_fastpath_journeys.ipynb`, was replaced by this and is recoverable
-from commit c10f1d9. It built an event chain
-(`(:Student)-[:FIRST_INTERACTION]->(:Interaction)->…`, ~281k nodes) so FastPath could embed
-each student's *sequence*. It worked mechanically but its cohorts were near-identical on every
-interpretable axis (meanDay 109-119 across all 11) and separated outcomes by ~10 points against
-~90 for click volume. FastPath's parameters were also renamed between alphas
-(`dimension` → `embedding_dimension`, `max_elapsed_time` → `lookback_horizon`,
+`aga_fastpath_journeys.ipynb` builds an event chain in AuraDB
+(`(:Student)-[:FIRST_INTERACTION]->(:Interaction)-[:NEXT_INTERACTION]->…`, one node per
+student/material/day, ~281k for the default module) so **FastPath** can embed each student's
+*sequence*, then scores that embedding as a classifier feature. Its parameters were renamed
+between alphas (`dimension` → `embedding_dimension`, `max_elapsed_time` → `lookback_horizon`,
 `num_elapsed_times` → `num_time_anchors`, `time_node_property` → `event_node_time_property`,
 `output_time` → `observation_time`, `decay_factor` → `decay_rate`), so 2.0a1 examples do not run.
+Numeric event features go in via `event_node_feature_vector_property` as a **list**, even for one
+number — omitting it means click intensity never reaches the algorithm.
+
+**Two results, and both belong in any summary.** Module GGG, held-out 30% split: on the whole
+journey the embedding reaches 0.9280 accuracy (0.9308 with volume) against a 0.6393 majority
+rate, flagging 83.7% of at-risk students. Cut at `CUTOFF_DAY = 30`, every variant collapses to
+0.6348–0.6455 against a 0.6462 floor, and recall falls to 32.3%. The untruncated score is
+hindsight — the embedding reads *when activity stopped*, which for a withdrawal is the label. So
+it is a strong retrospective classifier and a worthless early-warning one, and quoting the first
+number alone is how you end up believing you have a 93% early-warning system.
+
+When changing `CUTOFF_DAY`, the cutoff must reach **every** feature. It gates the chain build,
+`LABEL_QUERY`'s `logClicks`, and `BASELINE_QUERY`; missing any one pits a truncated feature
+against a hindsight one. Judging the embedding by Louvain modularity was the original mistake
+here (0.5470 and 0.5122 across two runs, both read as failure) — modularity scores partition
+quality, not predictive value.
 
 Cypher gotcha hit twice while writing that chain builder: **a node or list element pulled out
 of a map or list cannot be used directly inside a `CREATE` pattern**. `CREATE
