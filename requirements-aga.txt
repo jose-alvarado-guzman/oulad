@@ -1,15 +1,26 @@
 # Dependencies for the Aura Graph Analytics notebooks. In Colab:
 #     !pip install -r requirements-aga.txt
 #
-# The ETL requirements come along because the notebooks import
-# oulad.credentials to resolve secrets the same way the loader does.
--r requirements.txt
+# Deliberately NOT `-r requirements.txt`. These notebooks talk to the graph with
+# the neo4j driver and graphdatascience directly, and touch this repository only
+# to import oulad.credentials, which needs nothing beyond python-dotenv. Pulling
+# in the ETL stack would add pyneoinstance, neo4j-viz, pyvis, traitlets, wget and
+# PyYAML for nothing -- and it is neo4j-viz that forces the traitlets>=5.10 floor
+# in requirements.txt, a problem these notebooks do not otherwise have.
 
 # Opens and drives a graph analytics session. Version 2 is what carries the
 # session API (GdsSessions, AuraAPICredentials, DbmsConnectionInfo), and it is
-# still in alpha, so this is pinned exactly rather than to a range: the
-# surface can move between alphas. Verified against 2.0a5.
+# still in alpha, so this is pinned exactly rather than to a range: the surface
+# can move between alphas. Verified against 2.0a5.
 graphdatascience==2.0a5
 
-# Charts in the notebooks.
+# The driver the notebooks query AuraDB with, kept on the major version the
+# Cypher was written against.
+neo4j>=6.2,<7
+
+# Frames for the results, and charts.
+pandas>=3.0,<4
 matplotlib>=3.8,<4
+
+# All that oulad.credentials needs to read a local .env file.
+python-dotenv>=1.2,<2
