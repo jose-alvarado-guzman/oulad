@@ -30,7 +30,7 @@ Virtualenv in use: `~/.virtualenvs/OULAD` (Python 3.13). Dependencies are pinned
 
 **`traitlets>=5.10` is pinned even though nothing here imports it.** `pyneoinstance` pulls in `neo4j-viz`, whose `widget.py` evaluates `traitlets.Instance[...]` while defining a class, so it runs on import; `Instance` only became subscriptable in traitlets 5.10. `neo4j-viz` asks for `traitlets>=5,<6`, which an environment already pinned to 5.7 satisfies, so pip leaves it alone and `import pyneoinstance` dies with `type 'Instance' is not subscriptable`. Colab pins exactly 5.7.1, so this bites there and not locally. `tests/test_environment.py` fails by name rather than letting the third-party import error surface. Note also that `neo4j-rust-ext` is a *hard* requirement of pyneoinstance, not an optional speedup — it arrives whether or not it's named.
 
-Two notebooks live in `notebooks/`. `oulad_data_load.ipynb` runs the ETL; `aga_student_cohorts.ipynb` opens an Aura Graph Analytics session over the loaded graph (node similarity → Louvain cohorts → outcome cross-tab → degree centrality → write-back), with `graphdatascience` pinned exactly because its session API is still in alpha. A session is billed compute separate from AuraDB, so it carries a 2-hour TTL and a delete step.
+Three notebooks live in `notebooks/`. `oulad_data_load.ipynb` runs the ETL; `aga_student_cohorts.ipynb` opens an Aura Graph Analytics session over the loaded graph (node similarity → Louvain cohorts → outcome cross-tab → degree centrality → write-back), with `graphdatascience` pinned exactly because its session API is still in alpha. A session is billed compute separate from AuraDB, so it carries a 2-hour TTL and a delete step.
 
 Two AGA traps, both of which return plausible zeros rather than failing, and both now
 guarded in the notebook. **A `node_labels` filter induces a subgraph**: passing
@@ -42,6 +42,23 @@ weight is not an error either** — it is treated as zero. Step 6 therefore prin
 session's weighted degree against `sum(r.sumClick)` from the database; they must agree to the
 click. That cross-check is what caught the `node_labels` bug after two wrong diagnoses (a
 dropped property, then a missing inverse index — both disproved by probing a live session).
+
+`aga_fastpath_journeys.ipynb` is the sequence counterpart: it builds an event chain in AuraDB
+(`(:Student)-[:FIRST_INTERACTION]->(:Interaction)-[:NEXT_INTERACTION]->…`, one node per
+student/material/day) because the loaded graph has no ordering in it, embeds each student's
+chain with FastPath, then KNN and Louvain over the embeddings. Unlike the cohorts notebook it
+*creates nodes* — ~281k for the default module — so its cleanup step defaults to deleting
+them, and `MAX_STUDENTS` caps the build for trials. FastPath's Python surface was renamed
+between alphas (`dimension` → `embedding_dimension`, `max_elapsed_time` → `lookback_horizon`,
+`num_elapsed_times` → `num_time_anchors`, `time_node_property` → `event_node_time_property`,
+`output_time` → `observation_time`, `decay_factor` → `decay_rate`), so examples written
+against 2.0a1 will not run; read the signature before trusting any snippet.
+
+Cypher gotcha hit twice while writing that chain builder: **a node or list element pulled out
+of a map or list cannot be used directly inside a `CREATE` pattern**. `CREATE
+(ev)-[:OF_MATERIAL]->(event.material)` and `CREATE (s)-[:FIRST]->(chain[0])` are both syntax
+errors; bind them with a `WITH` first. `EXPLAIN` catches this without writing anything, which
+is the cheap way to check a mutating query.
 
 `requirements-aga.txt` deliberately does **not** include `-r requirements.txt`. The AGA notebooks use the `neo4j` driver and `graphdatascience` directly and touch this repo only to import `oulad.credentials`, which needs nothing but `python-dotenv`. Adding the ETL stack would install pyneoinstance, neo4j-viz, pyvis, traitlets, wget and PyYAML for nothing — and neo4j-viz is what forces the `traitlets>=5.10` floor, so the AGA notebooks avoid that trap entirely and need no session restart after installing. They still clone the repo, but only so the secret names, resolution order and instance-id derivation live in one place.
 
