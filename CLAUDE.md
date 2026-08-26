@@ -43,16 +43,29 @@ session's weighted degree against `sum(r.sumClick)` from the database; they must
 click. That cross-check is what caught the `node_labels` bug after two wrong diagnoses (a
 dropped property, then a missing inverse index — both disproved by probing a live session).
 
-`aga_fastpath_journeys.ipynb` is the sequence counterpart: it builds an event chain in AuraDB
-(`(:Student)-[:FIRST_INTERACTION]->(:Interaction)-[:NEXT_INTERACTION]->…`, one node per
-student/material/day) because the loaded graph has no ordering in it, embeds each student's
-chain with FastPath, then KNN and Louvain over the embeddings. Unlike the cohorts notebook it
-*creates nodes* — ~281k for the default module — so its cleanup step defaults to deleting
-them, and `MAX_STUDENTS` caps the build for trials. FastPath's Python surface was renamed
-between alphas (`dimension` → `embedding_dimension`, `max_elapsed_time` → `lookback_horizon`,
+`aga_outcome_prediction.ipynb` embeds students with **FastRP** over their engagement and
+demographic neighbourhood and trains a GDS **node classification pipeline** to predict whether
+they pass. It writes nothing to the database — the class label is computed inside the
+projection query, so it exists only in the session. `WAS_ASSESSED_IN` is deliberately excluded:
+scores determine `finalResult`, so training on them is leakage.
+
+**It trains two variants on purpose**, embedding+volume and volume-only, because the ablation
+is the whole point. Measured on GGG: embedding alone collapses to a constant classifier (F1
+macro 0.372, accuracy 0.592, against a 0.598 majority rate) because **FastRP normalises away
+degree, and degree is the signal**; volume alone scores 0.843/0.855; both together 0.847/0.859.
+The embedding is worth **+0.4 accuracy points**, i.e. nothing. Keep the ablation in — without
+it the notebook reads as though 128 dimensions bought the +5.7 points over the median-threshold
+baseline, when a random forest on one logged feature did.
+
+The FastPath predecessor, `aga_fastpath_journeys.ipynb`, was replaced by this and is recoverable
+from commit c10f1d9. It built an event chain
+(`(:Student)-[:FIRST_INTERACTION]->(:Interaction)->…`, ~281k nodes) so FastPath could embed
+each student's *sequence*. It worked mechanically but its cohorts were near-identical on every
+interpretable axis (meanDay 109-119 across all 11) and separated outcomes by ~10 points against
+~90 for click volume. FastPath's parameters were also renamed between alphas
+(`dimension` → `embedding_dimension`, `max_elapsed_time` → `lookback_horizon`,
 `num_elapsed_times` → `num_time_anchors`, `time_node_property` → `event_node_time_property`,
-`output_time` → `observation_time`, `decay_factor` → `decay_rate`), so examples written
-against 2.0a1 will not run; read the signature before trusting any snippet.
+`output_time` → `observation_time`, `decay_factor` → `decay_rate`), so 2.0a1 examples do not run.
 
 Cypher gotcha hit twice while writing that chain builder: **a node or list element pulled out
 of a map or list cannot be used directly inside a `CREATE` pattern**. `CREATE
