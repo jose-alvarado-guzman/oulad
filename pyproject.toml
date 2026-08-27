@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "oulad"
 version = "0.1.0"
 description = "Load the OULAD dataset into Neo4j as a property graph"
+readme = "README.md"
 requires-python = ">=3.11"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
