@@ -121,7 +121,29 @@ Accuracy, GGG, held-out 30% split:
 
 F1 macro for the journey embedding: 0.5198 → 0.5980 → 0.6449 → 0.9176.
 
-At-risk recall: **32.3%** (250 of 773) at day 30, **83.7%** (707 of 845) on the whole journey.
+### At-risk detection — the table that should drive the decision
+
+Accuracy counts every unflagged failure against the model, which punishes a conservative
+classifier for being conservative. What an intervention team needs is how many students get
+flagged, what share of eventual failures that catches (**recall**), and what share of the flags
+are real (**precision**). Journey + volume:
+
+| cutoff | at risk | flagged | recall | precision | accuracy |
+| --- | --- | --- | --- | --- | --- |
+| day 30 | 773 | 271 | 0.323 | **0.923** | 0.6455 |
+| day 60 | 822 | 420 | 0.381 | 0.745 | 0.6978 |
+| **day 90** | 836 | 469 | **0.481** | **0.857** | 0.7226 |
+| whole journey | 845 | 716 | 0.837 | 0.987 | 0.9308 |
+
+Volume alone at the same cutoffs reaches precision 0.464, 0.523, 0.568 and 0.897. **The embedding
+roughly doubles precision at every early cutoff** — a much stronger claim than the accuracy column
+supports, and the clearest evidence in this exercise that the sequence carries something an
+aggregate does not.
+
+These figures come from `predict_stream` over every labelled student, including the 70% trained
+on, so they read optimistic; GDS does not expose test-split membership. For the whole journey,
+all-student agreement (0.9377) against held-out accuracy (0.9308) suggests the inflation is small,
+but it is not quantified for precision.
 
 ### Three readings
 
@@ -152,28 +174,47 @@ cutoff is scored against another's hindsight.
 
 ## Conclusions
 
-**For describing a finished presentation**, the FastPath embedding is the strongest thing here:
-0.9280 accuracy alone, 0.9308 with volume, against a 0.6393 floor. But it is reading the end of
-the journey, so this is retrospective classification, not prediction.
+### Recommended: FastPath journey + volume, cut at day 90
 
-**For early warning**, nothing works at day 30 and the best available is a day-60 to day-90 model
-at 0.69–0.72 accuracy against a ~0.64 floor. Modest, but actionable in a way the 0.93 is not.
+Flags 469 of 2,342 students; 402 of them genuinely fail. **Precision 0.857, recall 0.481.** It
+beats day 60 on both measures at once — 0.481 against 0.381 recall, 0.857 against 0.745 precision
+— so there is nothing to trade off between them. Roughly a fifth of the cohort is flagged and
+about six in seven flags are real, which is a worklist an intervention team can act on.
 
-**The one place a graph embedding earns its cost** is the day-60 window, where the sequence beats
-click volume by 8.6 points and volume is below the floor. Everywhere else in this exercise, one
-logged aggregate matched or beat the embedding:
+**Day 30 is the alternative worth knowing about**: precision 0.923 on only 271 students, available
+two months earlier. Lower coverage, cleaner list. If intervention capacity binds rather than
+coverage, it is the better trade.
 
-| method | best accuracy | worth over one aggregate |
-| --- | --- | --- |
-| FastRP topology embedding | 0.8588 | +0.4 pts |
-| FastPath, whole journey | 0.9308 | +6.5 pts (hindsight) |
-| FastPath, day 60 | 0.6978 | **+9.5 pts (actionable)** |
+### Not recommended
 
-**If outcome prediction is the goal and interpretability matters**, `sum(sumClick)` plus a
-last-active-day flag gets most of the way and can be explained to a tutor. A FastRP vector is a
-random projection; its dimensions mean nothing individually.
+**The whole-journey model**, despite 0.9308 accuracy and 0.987 precision. It needs the journey to
+be finished, and once a presentation ends `finalResult` is already in the data — it predicts
+something you know. Its apparent skill is largely the model noticing when activity stopped.
 
----
+**FastRP**, worth +0.4 accuracy points over one logged aggregate. The pipeline complexity buys
+nothing on this graph.
+
+**Volume alone, early.** It works retrospectively (0.8658 accuracy, 0.897 precision) but collapses
+in the window that matters: precision 0.464 to 0.568 across days 30 to 90, against 0.745 to 0.923
+for the embedding. The interpretable single feature is not a viable fallback for early warning.
+
+### Before any of this ships
+
+**Measure a clean out-of-sample split.** The precision and recall above include training data.
+
+**Validate on a second module.** Everything here is GGG.
+
+**Build the zero-activity rule first.** Students who never touch a material cannot be projected,
+embedded or classified, and in module BBB **88.1% of that group withdrew** against 19.0% of
+engaged students. "No activity by day 14" flags a higher-risk population than any classifier here
+and needs no graph analytics. This model belongs *after* that rule, over students who are engaging
+but engaging badly.
+
+### On choosing a measure
+
+The same FastPath embedding was judged three ways and got three verdicts: Louvain modularity said
+it had failed, accuracy said it was mediocre early, precision said it produces a usable worklist.
+None of the measurements were wrong; two of them were answering a question nobody was asking.
 
 ## Mistakes, and what they cost
 
@@ -210,6 +251,12 @@ against nine months of hindsight volume. **Caught before running.**
 **Overstating a result before testing it.** "The strongest predictor in this repository" was
 written after the untruncated run and before the truncation test. It needed splitting into a
 retrospective claim and an early-warning claim, which are not interchangeable.
+
+**Recommending on accuracy.** The first version of this document called the day-60 model "modest,
+~0.70 accuracy" and treated that as its ceiling. Measuring precision showed a 469-student worklist
+at day 90 that is 86% correct — the model is conservative, and accuracy penalises exactly that.
+**Cost: a recommendation pitched far below what the model can actually do, nearly discarded as
+too weak to use.**
 
 ---
 

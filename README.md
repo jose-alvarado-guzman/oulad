@@ -57,23 +57,32 @@ to the database, and it removes what it wrote.
 Predicting whether a student passes, from engagement and demographics only — no assessment
 scores, since those determine the outcome by definition.
 
-| approach | accuracy | verdict |
-| --- | --- | --- |
-| always guess the majority class | 0.6393 | the floor |
-| `sum(sumClick) >= median`, no model | 0.7681 | one line of Cypher |
-| **one logged click total**, random forest | **0.8658** | the bar that matters |
-| FastRP topology embedding + volume | 0.8588 | embedding worth **+0.4 pts** |
-| FastPath sequence embedding, whole journey | 0.9280 | mostly **hindsight** |
-| FastPath sequence embedding, **cut at day 60** | 0.6892 | **+8.6 pts over volume** |
+**Recommended model: FastPath sequence embedding + click volume, cut at day 90.** It flags 469
+of 2,342 students and 402 of them genuinely fail — precision **0.857**, recall **0.481**.
 
-Two conclusions, and neither survives alone:
+| cutoff | flagged | recall | precision | accuracy |
+| --- | --- | --- | --- | --- |
+| day 30 | 271 | 0.323 | **0.923** | 0.6455 |
+| day 60 | 420 | 0.381 | 0.745 | 0.6978 |
+| **day 90** | 469 | **0.481** | **0.857** | 0.7226 |
+| whole journey | 716 | 0.837 | 0.987 | 0.9308 |
 
-- **The 0.93 is not an early-warning system.** With the whole journey, the embedding is reading
-  *when activity stopped*, which for a withdrawal is the label restated. Truncated to the first
-  30 days it scores 0.6348 — below the majority floor.
-- **But at day 60 the sequence beats volume by 8.6 points**, and volume alone is *worse than
-  guessing*. In the window where an intervention is still possible, journey shape carries signal
-  no aggregate does. That is the one place a graph embedding earns its cost here.
+Three things worth knowing before reading those numbers as a win:
+
+- **Accuracy is the wrong measure here.** At day 90 an unremarkable 0.7226 accuracy conceals an
+  86%-precision worklist. The model is conservative, and accuracy punishes that.
+- **The whole-journey row is hindsight.** The embedding reads *when activity stopped*, which for a
+  withdrawal is the label. Once a presentation is over you already have `finalResult`.
+- **Click volume alone is not a fallback early.** It reaches 0.897 precision retrospectively but
+  only 0.464–0.568 across days 30 to 90, against 0.745–0.923 for the embedding. That gap is the
+  clearest case for a graph embedding in this repository.
+
+A FastRP topology embedding, by contrast, was worth **+0.4 accuracy points** over one logged
+aggregate and collapsed to a constant classifier on its own.
+
+And the highest-value trigger is probably not a model: students who never touch a material cannot
+be projected at all, and in module BBB **88.1% of that group withdrew**. A "no activity by day 14"
+rule belongs in front of any of this.
 
 **[`docs/model-selection.md`](docs/model-selection.md)** has the full record: every method, every
 number, and the conclusions that had to be retracted along the way.
