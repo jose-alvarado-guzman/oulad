@@ -11,22 +11,7 @@ The full graph is **66,920 nodes and 8,818,076 relationships**, loaded in about 
 
 ## The graph
 
-```
-                    ┌──────────────┐
-     WAS_REGISTERED │              │ IN_AGE_GROUP          → (:AgeGroup)
-   ┌────────────────┤  (:Student)  ├─ LIVE_IN_REGION       → (:Region)
-   │                │              │─ HAS_HIGHER_EDUCATION → (:Education)
-   │                └──────┬───────┘─ IN_DEPRIVATION_GROUP → (:MultipleDeprivationIndex)
-   │                       │
-   ▼                       │ WAS_ASSESSED_IN {score, dateSubmitted}
-(:StudentRegistration)     │ REVIEWED_MATERIAL {date, sumClick, count}
-   │                       │
-   │ CONTAINS_COURSE       ├──────────────────────► (:EducationalMaterial)
-   │ {finalResult, …}      └──────────────────────► (:Assessment)
-   ▼
-(:Course) ─ HAS_MATERIAL   ─► (:EducationalMaterial)
-          └ HAS_ASSESSMENT ─► (:Assessment)
-```
+![The OULAD graph model](imgs/oulad_data_model.png)
 
 Nine node labels, ten relationship types. `Student` also carries a secondary `DisabledStudent`
 label where applicable. Outcomes live on `CONTAINS_COURSE` as `finalResult`, not on the student.
