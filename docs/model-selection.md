@@ -110,7 +110,8 @@ embeds each chain; the embedding is then scored as a classifier feature.
 The decisive experiment. `CUTOFF_DAY` limits how much of each journey the model may see, so the
 sweep answers *when* the information arrives rather than only whether a model works.
 
-Accuracy, GGG, held-out 30% split:
+Accuracy as GDS reports it, GGG, on its own internal 30% test split — so these figures are
+genuinely out-of-sample, unlike the precision figures the first version of this document carried:
 
 | cutoff | students | majority | threshold | volume | **journey** | both |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -121,29 +122,59 @@ Accuracy, GGG, held-out 30% split:
 
 F1 macro for the journey embedding: 0.5198 → 0.5980 → 0.6449 → 0.9176.
 
+Day 60 appears here and not in the holdout table below; the holdout sweep ran 30 / 90 / whole.
+
 ### At-risk detection — the table that should drive the decision
 
 Accuracy counts every unflagged failure against the model, which punishes a conservative
 classifier for being conservative. What an intervention team needs is how many students get
 flagged, what share of eventual failures that catches (**recall**), and what share of the flags
-are real (**precision**). Journey + volume:
+are real (**precision**).
+
+Evaluated on a **707-student holdout the model never trained on** (30%, seed 42), journey + volume:
 
 | cutoff | at risk | flagged | recall | precision | accuracy |
 | --- | --- | --- | --- | --- | --- |
-| day 30 | 773 | 271 | 0.323 | **0.923** | 0.6455 |
-| day 60 | 822 | 420 | 0.381 | 0.745 | 0.6978 |
-| **day 90** | 836 | 469 | **0.481** | **0.857** | 0.7226 |
-| whole journey | 845 | 716 | 0.837 | 0.987 | 0.9308 |
+| day 30 | 234 | 112 | 0.231 | 0.482 | 0.635 |
+| **day 90** | 258 | 133 | **0.372** | **0.722** | 0.717 |
+| whole journey | 261 | 204 | 0.759 | 0.971 | 0.902 |
 
-Volume alone at the same cutoffs reaches precision 0.464, 0.523, 0.568 and 0.897. **The embedding
-roughly doubles precision at every early cutoff** — a much stronger claim than the accuracy column
-supports, and the clearest evidence in this exercise that the sequence carries something an
-aggregate does not.
+Volume alone on the same holdout reaches precision 0.382, 0.417 and 0.825. **The embedding nearly
+doubles it at day 90**, which is the clearest evidence in this exercise that the sequence carries
+something an aggregate does not — and it survives an honest split.
 
-These figures come from `predict_stream` over every labelled student, including the 70% trained
-on, so they read optimistic; GDS does not expose test-split membership. For the whole journey,
-all-student agreement (0.9377) against held-out accuracy (0.9308) suggests the inflation is small,
-but it is not quantified for precision.
+#### The split, and why it had to be built by hand
+
+GDS splits internally but does not expose which nodes its test set held, so `predict_stream` over
+all students mixes training data into the evaluation. The split here is explicit: students carry an
+`isHoldout` flag projected as a node property, the pipeline trains on a `TrainStudent` label and
+predicts on `HoldoutStudent`.
+
+**Order matters.** `fast_path.mutate` registers its output property against `base_node_label` only,
+so a `TrainStudent` label that existed at projection time does not carry `journeyEmbedding` and
+training dies with *"node properties do not exist in the graph or part of the pipeline"*. The
+labels have to be added with `gds.graph.node_labels.mutate` **after** the embedding step.
+
+#### How much the in-sample-inclusive figures overstated it
+
+| cutoff | precision gap | recall gap | accuracy gap |
+| --- | --- | --- | --- |
+| day 30 | **+0.450** | +0.356 | +0.206 |
+| day 90 | +0.165 | +0.144 | +0.090 |
+| whole journey | +0.017 | +0.068 | +0.033 |
+
+Day 30 was almost entirely memorisation: 0.932 precision in-sample against 0.482 held out.
+
+Note the shape of those gaps. Accuracy moved 3–21 points while precision moved up to 45. Accuracy
+is dominated by the majority class and conceals memorisation, so "the accuracy gap is small,
+therefore the inflation is small" is not a valid argument — and it was the argument that let a bad
+day-30 recommendation stand for one revision of this document.
+
+The reassurance was circular on top of that. The accuracy column in the sweep above is GDS's own
+held-out metric, so it *could not* show inflation; agreement between a clean number and a dirty one
+says nothing about the dirty one. The holdout accuracy measured here (0.635 at day 30) lands close
+to GDS's reported 0.6455, which confirms the two evaluations agree on accuracy while diverging by
+45 points on precision.
 
 ### Three readings
 
@@ -176,31 +207,29 @@ cutoff is scored against another's hindsight.
 
 ### Recommended: FastPath journey + volume, cut at day 90
 
-Flags 469 of 2,342 students; 402 of them genuinely fail. **Precision 0.857, recall 0.481.** It
-beats day 60 on both measures at once — 0.481 against 0.381 recall, 0.857 against 0.745 precision
-— so there is nothing to trade off between them. Roughly a fifth of the cohort is flagged and
-about six in seven flags are real, which is a worklist an intervention team can act on.
+On a 707-student holdout the model never trained on: **precision 0.722, recall 0.372**. It flags
+133 students and roughly 96 of them genuinely fail. Modest coverage, but a list worth acting on, and
+volume alone manages 0.417 precision on the same students.
 
-**Day 30 is the alternative worth knowing about**: precision 0.923 on only 271 students, available
-two months earlier. Lower coverage, cleaner list. If intervention capacity binds rather than
-coverage, it is the better trade.
+**There is no day-30 alternative.** An earlier version of this document recommended one on the
+strength of 0.923 precision. That figure included training data; held out it is **0.482**, which is
+close to a coin flip on the flagged set.
 
 ### Not recommended
 
-**The whole-journey model**, despite 0.9308 accuracy and 0.987 precision. It needs the journey to
+**The whole-journey model**, despite 0.902 holdout accuracy and 0.971 holdout precision. It needs the journey to
 be finished, and once a presentation ends `finalResult` is already in the data — it predicts
 something you know. Its apparent skill is largely the model noticing when activity stopped.
 
 **FastRP**, worth +0.4 accuracy points over one logged aggregate. The pipeline complexity buys
 nothing on this graph.
 
-**Volume alone, early.** It works retrospectively (0.8658 accuracy, 0.897 precision) but collapses
-in the window that matters: precision 0.464 to 0.568 across days 30 to 90, against 0.745 to 0.923
-for the embedding. The interpretable single feature is not a viable fallback for early warning.
+**Volume alone, early.** It works retrospectively (0.825 holdout precision on the whole journey)
+but collapses in the window that matters: 0.382 at day 30 and 0.417 at day 90, against 0.482 and
+0.722 for the embedding. The interpretable single feature is not a viable fallback for early
+warning.
 
 ### Before any of this ships
-
-**Measure a clean out-of-sample split.** The precision and recall above include training data.
 
 **Validate on a second module.** Everything here is GGG.
 
@@ -253,10 +282,17 @@ written after the untruncated run and before the truncation test. It needed spli
 retrospective claim and an early-warning claim, which are not interchangeable.
 
 **Recommending on accuracy.** The first version of this document called the day-60 model "modest,
-~0.70 accuracy" and treated that as its ceiling. Measuring precision showed a 469-student worklist
-at day 90 that is 86% correct — the model is conservative, and accuracy penalises exactly that.
-**Cost: a recommendation pitched far below what the model can actually do, nearly discarded as
-too weak to use.**
+~0.70 accuracy" and treated that as its ceiling. Measuring precision showed a much better-looking
+worklist — the model is conservative, and accuracy penalises exactly that. **Cost: a
+recommendation pitched below what the model can do.**
+
+**Then recommending on in-sample precision.** The precision that replaced it was measured with
+`predict_stream` over every labelled student, including the 70% trained on. Held out properly, day
+90 fell from 0.857 to 0.722 and day 30 from 0.923 to **0.482** — the day-30 configuration was
+recommended as a high-precision early worklist and is nothing of the kind. Worse, the inflation was
+dismissed by pointing at a small accuracy gap, when accuracy is the metric least sensitive to
+memorisation on an imbalanced target. **Cost: a recommendation that would have put a coin-flip
+model in front of an intervention team.**
 
 ---
 

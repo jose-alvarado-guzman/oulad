@@ -57,24 +57,27 @@ to the database, and it removes what it wrote.
 Predicting whether a student passes, from engagement and demographics only — no assessment
 scores, since those determine the outcome by definition.
 
-**Recommended model: FastPath sequence embedding + click volume, cut at day 90.** It flags 469
-of 2,342 students and 402 of them genuinely fail — precision **0.857**, recall **0.481**.
+**Recommended model: FastPath sequence embedding + click volume, cut at day 90.** On a
+707-student holdout it never trained on, it flags 133 students and about 96 of them genuinely
+fail — precision **0.722**, recall **0.372**.
 
 | cutoff | flagged | recall | precision | accuracy |
 | --- | --- | --- | --- | --- |
-| day 30 | 271 | 0.323 | **0.923** | 0.6455 |
-| day 60 | 420 | 0.381 | 0.745 | 0.6978 |
-| **day 90** | 469 | **0.481** | **0.857** | 0.7226 |
-| whole journey | 716 | 0.837 | 0.987 | 0.9308 |
+| day 30 | 112 | 0.231 | 0.482 | 0.635 |
+| **day 90** | 133 | **0.372** | **0.722** | 0.717 |
+| whole journey | 204 | 0.759 | 0.971 | 0.902 |
 
 Three things worth knowing before reading those numbers as a win:
 
-- **Accuracy is the wrong measure here.** At day 90 an unremarkable 0.7226 accuracy conceals an
-  86%-precision worklist. The model is conservative, and accuracy punishes that.
+- **Those are holdout figures, and getting there changed the answer.** GDS does not expose which
+  nodes its internal split held back, so evaluating over every student mixes training data in. That
+  inflated day-30 precision from 0.482 to **0.932** and produced a confident recommendation for a
+  cutoff that is close to a coin flip. Accuracy barely moved across the same gap, which is why it
+  is the wrong metric to check an evaluation with.
 - **The whole-journey row is hindsight.** The embedding reads *when activity stopped*, which for a
   withdrawal is the label. Once a presentation is over you already have `finalResult`.
-- **Click volume alone is not a fallback early.** It reaches 0.897 precision retrospectively but
-  only 0.464–0.568 across days 30 to 90, against 0.745–0.923 for the embedding. That gap is the
+- **Click volume alone is not a fallback early.** It reaches 0.825 precision retrospectively but
+  only 0.382–0.417 across days 30 to 90, against 0.482–0.722 for the embedding. That gap is the
   clearest case for a graph embedding in this repository.
 
 A FastRP topology embedding, by contrast, was worth **+0.4 accuracy points** over one logged
