@@ -176,10 +176,56 @@ says nothing about the dirty one. The holdout accuracy measured here (0.635 at d
 to GDS's reported 0.6455, which confirms the two evaluations agree on accuracy while diverging by
 45 points on precision.
 
+### Validation on a second module
+
+Everything above is module GGG. Repeating the identical procedure on **BBB** — 6,484 students,
+1,139,085 events, days -23..268, same seed, same 30% holdout — gives 1,938 held-out students at
+day 90:
+
+| cutoff | features | flagged | of at risk | recall | precision | accuracy | precision gap |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| day 30 | volume | 549 | 812 | 0.425 | 0.628 | 0.650 | −0.015 |
+| day 30 | both | 446 | 812 | 0.386 | 0.702 | 0.670 | +0.141 |
+| day 90 | volume | 591 | 826 | 0.504 | 0.704 | 0.698 | −0.010 |
+| **day 90** | **both** | **520** | **826** | **0.528** | **0.838** | 0.755 | **+0.015** |
+| whole journey | volume | 735 | 829 | 0.679 | 0.766 | 0.775 | −0.011 |
+| whole journey | both | 677 | 829 | 0.776 | 0.950 | 0.887 | +0.023 |
+
+**The day-90 recommendation replicates, and more cleanly than on GGG.** Precision 0.838 against
+GGG's 0.722, recall 0.528 against 0.372, and an inflation gap of +0.015 against +0.165.
+
+**At day 90 the embedding dominates volume outright in both modules** — not a precision/recall
+trade. On BBB it flags *fewer* students than volume (520 against 591) and catches *more* failures
+(436 against 416). On GGG, 133 against 163 flags and 96 against 68 caught. That is the single most
+robust result in this exercise.
+
+**GGG's day-30 collapse does not generalise.** On BBB, day 30 holds out at 0.702 precision with a
++0.141 gap. Day 30 on GGG was memorisation; day 30 on BBB is signal. So "the embedding needs 60
+days" is a statement about GGG, not about the method — which is exactly the kind of claim a single
+module cannot support and is the reason this section exists.
+
+**But the absolute numbers are not transferable.** Day-90 precision is 0.722 on GGG and 0.838 on
+BBB for identical code and hyperparameters. Quote a range, or re-measure per module; do not quote
+one module's figure as the model's performance.
+
+#### Only the embedding inflates, and that is mechanically why
+
+Across all six BBB configurations the volume-only gaps are −0.015 to −0.010 — negative, i.e. the
+holdout scored *better* than the training rows, which is what you expect from noise around zero
+inflation. Every positive gap belongs to a model carrying `journeyEmbedding`.
+
+One logged feature cannot memorise 4,500 training rows; 129 features can. So the size of the gap
+tracks feature dimensionality, not the cutoff, and any figure quoted for an embedding model
+without a holdout should be assumed inflated. The corollary is reassuring in one direction: the
+volume-only baselines in this document never needed the correction, so the comparisons that use
+them as a floor were never wrong — only the embedding's own numbers were.
+
 ### Three readings
 
-**The signal starts between day 30 and day 60.** At day 30 the embedding sits *below* the
-majority floor — nothing works. By day 60 it is 4.7 points above it and still climbing.
+**On GGG the signal starts between day 30 and day 60.** At day 30 the embedding sits *below* the
+majority floor — nothing works. By day 60 it is 4.7 points above it and still climbing. This is
+where it matters that BBB behaves differently: its day-30 embedding already holds out at 0.702
+precision, so the arrival time of the signal is a property of the presentation, not of the method.
 
 **Inside that window, sequence beats volume decisively.** Journey minus volume, in accuracy
 points: day 30 −0.9, **day 60 +8.6**, day 90 +6.1, whole journey +6.2. At day 60 click volume
@@ -207,13 +253,20 @@ cutoff is scored against another's hindsight.
 
 ### Recommended: FastPath journey + volume, cut at day 90
 
-On a 707-student holdout the model never trained on: **precision 0.722, recall 0.372**. It flags
-133 students and roughly 96 of them genuinely fail. Modest coverage, but a list worth acting on, and
-volume alone manages 0.417 precision on the same students.
+On holdouts the model never trained on: **precision 0.722 on GGG and 0.838 on BBB**, recall 0.372
+and 0.528. It flags fewer students than a click-volume model and catches more of the failures, in
+both modules — 133 flags catching 96 against volume's 163 catching 68 on GGG, and 520 catching 436
+against 591 catching 416 on BBB.
 
-**There is no day-30 alternative.** An earlier version of this document recommended one on the
-strength of 0.923 precision. That figure included training data; held out it is **0.482**, which is
-close to a coin flip on the flagged set.
+Two modules is not "validated", but it is enough to say the result is not an artefact of GGG, and
+enough to show the absolute number moves by 12 precision points between modules. Re-measure per
+module rather than carrying a figure across.
+
+**Day 30 is module-dependent, so do not ship it on one module's evidence.** An earlier version of
+this document recommended a day-30 worklist on the strength of 0.923 precision. That figure
+included training data; held out it is **0.482** on GGG, close to a coin flip on the flagged set.
+On BBB the same configuration holds out at 0.702. Day 90 is the cutoff that worked in both, which
+is why it is the recommendation.
 
 ### Not recommended
 
@@ -224,14 +277,17 @@ something you know. Its apparent skill is largely the model noticing when activi
 **FastRP**, worth +0.4 accuracy points over one logged aggregate. The pipeline complexity buys
 nothing on this graph.
 
-**Volume alone, early.** It works retrospectively (0.825 holdout precision on the whole journey)
-but collapses in the window that matters: 0.382 at day 30 and 0.417 at day 90, against 0.482 and
-0.722 for the embedding. The interpretable single feature is not a viable fallback for early
-warning.
+**Volume alone, early.** It works retrospectively (0.825 and 0.766 holdout precision on the whole
+journey) but is beaten in the window that matters: 0.382 and 0.417 at days 30 and 90 on GGG, 0.628
+and 0.704 on BBB, against 0.482/0.722 and 0.702/0.838 for the embedding. The interpretable single
+feature is not a viable fallback for early warning — though it is the one baseline in this document
+whose numbers needed no holdout correction, so it remains the honest floor to measure against.
 
 ### Before any of this ships
 
-**Validate on a second module.** Everything here is GGG.
+**Validate on the remaining five modules.** GGG and BBB agree on the recommendation and disagree by
+12 precision points on its value, which is enough to rule out an artefact and not enough to
+calibrate anything. AAA through FFF are unmeasured.
 
 **Build the zero-activity rule first.** Students who never touch a material cannot be projected,
 embedded or classified, and in module BBB **88.1% of that group withdrew** against 19.0% of

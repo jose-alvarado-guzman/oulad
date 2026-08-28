@@ -57,28 +57,39 @@ to the database, and it removes what it wrote.
 Predicting whether a student passes, from engagement and demographics only — no assessment
 scores, since those determine the outcome by definition.
 
-**Recommended model: FastPath sequence embedding + click volume, cut at day 90.** On a
-707-student holdout it never trained on, it flags 133 students and about 96 of them genuinely
-fail — precision **0.722**, recall **0.372**.
+**Recommended model: FastPath sequence embedding + click volume, cut at day 90.** Measured on
+holdouts it never trained on, in two modules:
 
-| cutoff | flagged | recall | precision | accuracy |
-| --- | --- | --- | --- | --- |
-| day 30 | 112 | 0.231 | 0.482 | 0.635 |
-| **day 90** | 133 | **0.372** | **0.722** | 0.717 |
-| whole journey | 204 | 0.759 | 0.971 | 0.902 |
+| cutoff | module | flagged | recall | precision | accuracy |
+| --- | --- | --- | --- | --- | --- |
+| day 30 | GGG | 112 | 0.231 | 0.482 | 0.635 |
+| day 30 | BBB | 446 | 0.386 | 0.702 | 0.670 |
+| **day 90** | **GGG** | 133 | **0.372** | **0.722** | 0.717 |
+| **day 90** | **BBB** | 520 | **0.528** | **0.838** | 0.755 |
+| whole journey | GGG | 204 | 0.759 | 0.971 | 0.902 |
+| whole journey | BBB | 677 | 0.776 | 0.950 | 0.887 |
+
+At day 90 it flags **fewer** students than a click-volume model and catches **more** of the
+failures, in both modules — 133 flags catching 96 against volume's 163 catching 68 on GGG, 520
+catching 436 against 591 catching 416 on BBB. That is the clearest case for a graph embedding in
+this repository.
 
 Three things worth knowing before reading those numbers as a win:
 
 - **Those are holdout figures, and getting there changed the answer.** GDS does not expose which
   nodes its internal split held back, so evaluating over every student mixes training data in. That
-  inflated day-30 precision from 0.482 to **0.932** and produced a confident recommendation for a
-  cutoff that is close to a coin flip. Accuracy barely moved across the same gap, which is why it
-  is the wrong metric to check an evaluation with.
+  inflated GGG's day-30 precision from 0.482 to **0.932** and produced a confident recommendation
+  for a cutoff that is close to a coin flip. Accuracy barely moved across the same gap, which is
+  why it is the wrong metric to check an evaluation with. Only the embedding models inflated —
+  every click-volume baseline came in within ±0.015 — because one logged feature cannot memorise
+  4,500 training rows and 129 features can.
+- **Two modules, and they disagree on the number.** Day-90 precision is 0.722 on GGG and 0.838 on
+  BBB for identical code. The recommendation replicates; its value does not transfer. Re-measure
+  per module.
 - **The whole-journey row is hindsight.** The embedding reads *when activity stopped*, which for a
   withdrawal is the label. Once a presentation is over you already have `finalResult`.
-- **Click volume alone is not a fallback early.** It reaches 0.825 precision retrospectively but
-  only 0.382–0.417 across days 30 to 90, against 0.482–0.722 for the embedding. That gap is the
-  clearest case for a graph embedding in this repository.
+- **Click volume alone is not a fallback early.** It reaches 0.766–0.825 precision retrospectively
+  but only 0.382–0.704 across days 30 to 90, against 0.482–0.838 for the embedding.
 
 A FastRP topology embedding, by contrast, was worth **+0.4 accuracy points** over one logged
 aggregate and collapsed to a constant classifier on its own.
