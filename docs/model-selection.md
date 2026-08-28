@@ -270,6 +270,13 @@ Two modules is not "validated", but it is enough to say the result is not an art
 enough to show the absolute number moves by 12 precision points between modules. Re-measure per
 module rather than carrying a figure across.
 
+**The zero-activity rule does not eat into this.** Restricted to holdout students the day-7 rule
+did *not* already flag, precision rises to **0.760 on GGG and 0.856 on BBB** — the model performs
+better on the population left after the rule, not worse. The overlap group is the model's weakest
+(0.606 on GGG): students silent for a week and then engaging have an irregular journey the
+embedding reads poorly. The two triggers are complements, and these committed figures are if
+anything conservative. Full partition in [`early-warning-rule.md`](early-warning-rule.md).
+
 **Day 30 is module-dependent, so do not ship it on one module's evidence.** An earlier version of
 this document recommended a day-30 worklist on the strength of 0.923 precision. That figure
 included training data; held out it is **0.482** on GGG, close to a coin flip on the flagged set.

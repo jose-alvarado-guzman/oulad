@@ -105,11 +105,39 @@ students and should not be read as a rate.
 | day-90 model, BBB | 0.838 | 0.528 | day 90 |
 
 The model wins on both axes in both modules. What the rule buys is **76 to 83 days of lead time
-for nothing** — no session, no chain build, no embedding. The two are complements: the rule takes
-the students who never start, the model takes the students who start and fade.
+for nothing** — no session, no chain build, no embedding.
 
-See [`model-selection.md`](model-selection.md) for the model's marginal value once the rule has
-taken its share.
+### The overlap costs the model nothing
+
+The obvious worry is double-counting: if the model's precision comes largely from students the
+rule already flags for free, its real contribution is smaller than advertised. Measured on the
+same holdout, partitioned by whether the day-7 rule flagged the student:
+
+| module | population | n | day-90 model precision | recall |
+| --- | --- | --- | --- | --- |
+| GGG | whole holdout | 702 | 0.722 | 0.372 |
+| GGG | **rule did not flag** | 564 | **0.760** | 0.398 |
+| GGG | rule already flagged | 138 | 0.606 | 0.299 |
+| BBB | whole holdout | 1,938 | 0.838 | 0.528 |
+| BBB | **rule did not flag** | 1,731 | **0.856** | 0.511 |
+| BBB | rule already flagged | 207 | 0.760 | 0.635 |
+
+**The model gets better, not worse, once the rule takes its share** — +3.8 points on GGG, +1.8 on
+BBB. The prediction going in was the reverse.
+
+The students the rule flags are the ones the model handles *worst*: silent for a week and then
+engaging, an irregular shape the embedding reads poorly (0.606 on GGG against 0.760 on the rest).
+So the two are cleanly complementary, and the committed figures slightly understate the model on
+the population it would actually be run over.
+
+Note also that most rule-flagged students are outside the model's reach entirely: the rule flags
+567 GGG students, but only 138 appear in the holdout with a journey to embed. The remainder never
+engage at all, so they cannot be projected — which is the structural blind spot this rule exists
+to cover.
+
+One inversion worth recording: on rule-flagged students specifically, click volume has *higher*
+recall than the embedding (GGG 0.403 against 0.299, BBB 0.835 against 0.635) at lower precision.
+For late starters the crude aggregate casts a wider net.
 
 ---
 

@@ -98,6 +98,8 @@ And the earliest trigger is not a model at all. Students still registered but si
 fail or withdraw at **0.736** against a 0.473 base rate — one `NOT EXISTS` clause, 83 days before
 the model above can say anything. It does not replace the model, which wins on both precision and
 recall; it catches the students who never start, while the model catches those who start and fade.
+Restricted to students the rule does *not* flag, the model's precision **rises** to 0.760 on GGG
+and 0.856 on BBB, so the two overlap without cannibalising each other.
 [`docs/early-warning-rule.md`](docs/early-warning-rule.md) has the sweep, the per-module spread,
 and the confounded 88.1% figure this README used to quote in its place.
 
