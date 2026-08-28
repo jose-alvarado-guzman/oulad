@@ -30,11 +30,19 @@ turned out to matter enormously — see the cutoff sweep.
 
 ### A structural blind spot
 
-**1,208 of 7,692 students registered in module BBB never touched a material**, and 88.1% of them
-withdrew, against 19.0% of engaged students. A student with no interactions has no edges, so
-cannot be projected, embedded, or classified. Every result below is therefore conditional on
-having engaged at all, and the excluded group is the one an intervention would most want to
-reach. For GGG the equivalent figure is 172 students.
+**1,287 of 7,909 BBB registrations never touched a material**, and 88.0% of them withdrew against
+19.0% of engaged students. A student with no interactions has no edges, so cannot be projected,
+embedded, or classified. Every result below is therefore conditional on having engaged at all, and
+the excluded group is the one an intervention would most want to reach.
+
+That 88.0% is a real number and a bad argument, which took a dedicated measurement to establish —
+**790 of those 1,287 students (61.4%) unregistered before day 0.** It is largely "students who quit
+before teaching began were recorded as withdrawn." It says nothing about what is visible at a
+decision point, and it was cited here and in `README.md` as support for a day-14 rule that nobody
+had measured. See [`early-warning-rule.md`](early-warning-rule.md) for the rule as it would
+actually be operated: it does *not* predict withdrawal (lift 1.38 at day 14), but it does predict
+failure — **precision 0.736 at day 7 against a 0.473 base rate**, 83 days before this model can
+speak.
 
 ---
 
@@ -289,11 +297,13 @@ whose numbers needed no holdout correction, so it remains the honest floor to me
 12 precision points on its value, which is enough to rule out an artefact and not enough to
 calibrate anything. AAA through FFF are unmeasured.
 
-**Build the zero-activity rule first.** Students who never touch a material cannot be projected,
-embedded or classified, and in module BBB **88.1% of that group withdrew** against 19.0% of
-engaged students. "No activity by day 14" flags a higher-risk population than any classifier here
-and needs no graph analytics. This model belongs *after* that rule, over students who are engaging
-but engaging badly.
+**Build the zero-activity rule first — it is measured, and it works.** Students still registered
+and silent at day 7 fail or withdraw at **0.736** against a 0.473 base rate, with no graph
+analytics and 83 days of lead time. It does not replace this model: on GGG and BBB the day-90
+model wins on both precision and recall. The two are complements — the rule takes the students who
+never start, the model takes the students who start and fade. Full measurement, including the
+day-14 threshold this document originally proposed and why day 7 beats it, in
+[`early-warning-rule.md`](early-warning-rule.md).
 
 ### On choosing a measure
 

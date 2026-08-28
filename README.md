@@ -94,9 +94,12 @@ Three things worth knowing before reading those numbers as a win:
 A FastRP topology embedding, by contrast, was worth **+0.4 accuracy points** over one logged
 aggregate and collapsed to a constant classifier on its own.
 
-And the highest-value trigger is probably not a model: students who never touch a material cannot
-be projected at all, and in module BBB **88.1% of that group withdrew**. A "no activity by day 14"
-rule belongs in front of any of this.
+And the earliest trigger is not a model at all. Students still registered but silent at **day 7**
+fail or withdraw at **0.736** against a 0.473 base rate — one `NOT EXISTS` clause, 83 days before
+the model above can say anything. It does not replace the model, which wins on both precision and
+recall; it catches the students who never start, while the model catches those who start and fade.
+[`docs/early-warning-rule.md`](docs/early-warning-rule.md) has the sweep, the per-module spread,
+and the confounded 88.1% figure this README used to quote in its place.
 
 **[`docs/model-selection.md`](docs/model-selection.md)** has the full record: every method, every
 number, and the conclusions that had to be retracted along the way.
@@ -143,7 +146,9 @@ src/oulad/                   the loading pipeline
   nodes.py, relationships.py reshape and load, with post-load QA
   credentials.py             Colab secrets, .env, and the two credential groups
 notebooks/                   one loader, three analytics notebooks
+scripts/zero_activity_rule.py  the early-warning measurement, offline
 docs/model-selection.md      what was tried, what it scored, what was wrong
+docs/early-warning-rule.md   the zero-activity rule: sweep, per-module, the query
 tests/                       72 offline tests
 requirements.txt             ETL dependencies
 requirements-aga.txt         analytics dependencies (deliberately not a superset)

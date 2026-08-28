@@ -162,6 +162,21 @@ To validate config edits without a database: load `config.yaml`, then check ever
 - `IN_AGE_GROUP` therefore uses `first-by` to keep the band from the student's **earliest presentation**, giving exactly one `AgeGroup` per student (28,785 rows = 28,785 distinct students). Without it those 72 students got two relationships each, since the `WHERE NOT EXISTS` guard only blocks duplicates to the *same* `AgeGroup` node. `order-cols` is `[code_presentation, age_band]`: `code_presentation` sorts chronologically as a plain string (fixed 4-digit year, `B` before `J`), and the `age_band` tiebreak keeps 685015 deterministic (resolves to `0-35`) instead of row-order dependent.
 - If you add another per-student dimension relationship, check for this first — the pattern is `si.groupby('id_student')[col].nunique(dropna=False) > 1`.
 
+### A trap that applies to every query in this repository
+
+**pandas NaN arrives in Neo4j as a float NaN, not as null.** `dateUnregistration` on
+`CONTAINS_COURSE` is the worst case: **22,521 of 32,593 values are NaN and none are null**. Both
+of these are therefore false for a missing value:
+
+- `r.dateUnregistration IS NULL`
+- `r.dateUnregistration > 14` — every comparison with NaN is false, including `<=`, `>=` and `=`
+
+So an `IS NULL OR > $day` test silently excludes 69% of the data and returns a plausible answer.
+Writing the zero-activity rule that way returned **49** flagged students for GGG at day 14 instead
+of **391**. Guard with `isNaN(...)` alongside the null check. `dateRegistration` carries 45 NaN
+values with the same hazard, and any numeric column that was nullable in the CSV will behave the
+same way. `docs/early-warning-rule.md` has the worked case.
+
 ### QA output
 
 `load_nodes_qa` / `load_relas_qa` run automatically after each load phase. They compare the driver's reported creation counts against `get_node_label_freq` / `get_rela_type_freq` from the live database and write a timestamped CSV to `Result/`. `qaFlag` is `toLoad - postCount`; nonzero means the graph doesn't hold what the dataframes contained (expected for labels/types that dedupe, e.g. distinct-value dimension nodes). A label or type absent from the frequency table is counted as 0 rather than left as `NaN`, so a total load failure shows up as the full row count instead of a blank cell. Note it compares *counts only* — it cannot detect a MERGE that silently overwrote a property.
