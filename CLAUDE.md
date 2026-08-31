@@ -186,6 +186,13 @@ Both notebooks now pass `liveness_check_timeout=30, max_connection_lifetime=600`
 teardown writes through a `db_execute` helper that rebuilds the driver mid-loop rather than
 abandoning a half-finished deletion.
 
+**A model recovered from the catalog is used differently from one returned by `train()`.** Only
+the training return value carries `.predict_stream` and `.drop`. `gds.model.get(name)` returns
+`ModelDetails` — metadata — so a loaded model is applied by *name* through
+`gds.pipeline.node_classification.predict.stream(G, model_name, target_node_labels=[...])`, and
+released with `gds.model.drop(name)` rather than `get(name).drop()`. This is the one API path a
+training notebook never exercises, so it is where `aga_score_unseen_module.ipynb` broke first.
+
 **`ModelDetails` has no `.name`** — the field is `.model_name`. `[m.name for m in
 gds.model.list()]` raises `AttributeError` *after* a successful `store()`, which looks like the
 store failed when it did not.
