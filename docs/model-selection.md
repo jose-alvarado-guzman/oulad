@@ -283,6 +283,21 @@ included training data; held out it is **0.482** on GGG, close to a coin flip on
 On BBB the same configuration holds out at 0.702. Day 90 is the cutoff that worked in both, which
 is why it is the recommendation.
 
+### Amended by assessment submission
+
+The figures above predate [`assessment-submission.md`](assessment-submission.md), which adds four
+submission scalars to the same day-90 model and moves precision **+0.283 on GGG and +0.092 on
+BBB** — the largest single gain recorded in this document. Submission features *alone* reach
+0.826 and 0.831, within 1–3 points of the best arm containing the embedding.
+
+On BBB the embedding then contributes **+0.008 precision and 0.000 at a fixed budget of 100**. On
+GGG it still adds ~5 points, because GGG's first assessment falls on day 61 and its submission
+evidence is thin by the cutoff. So the embedding is worth its chain build only where the first
+assessment lands late; elsewhere it is redundant.
+
+Those arms were compared within a single harness and are not directly comparable to the
+GDS-derived numbers above.
+
 ### Not recommended
 
 **The whole-journey model**, despite 0.902 holdout accuracy and 0.971 holdout precision. It needs the journey to

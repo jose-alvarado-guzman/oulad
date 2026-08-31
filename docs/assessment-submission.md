@@ -4,8 +4,9 @@ A student who has not submitted a single assessment due so far is at risk. Measu
 seven modules, this is **the sharpest single signal in the dataset** — precision 0.74 to 0.93,
 firing 15 to 59 days before the day-90 model.
 
-Phases 1 and 2 complete: measured offline, ported to Cypher, reconciled exactly. Phase 3 (adding
-it to the model) is not done.
+All three phases complete: measured offline, ported to Cypher and reconciled exactly, then added
+to the day-90 model. **Adding submission features is the largest single improvement measured in
+this repository** — precision +0.283 on GGG and +0.092 on BBB over the current recommendation.
 
 ---
 
@@ -176,13 +177,76 @@ plan for this work claimed otherwise.
 
 ---
 
+## Phase 3 — as model features
+
+Five arms, one harness, same 30% holdout and seed 42, day 90. No analytics session needed: the
+FastPath embeddings were streamed to parquet by an earlier run and the submission features come
+from the CSVs.
+
+| module | features | precision | recall | p@100 | p@200 |
+| --- | --- | --- | --- | --- | --- |
+| BBB | volume | 0.715 | 0.485 | 0.93 | 0.870 |
+| BBB | journey + volume | 0.764 | 0.606 | 0.92 | 0.895 |
+| BBB | **submission** | 0.831 | 0.589 | 0.98 | 0.985 |
+| BBB | volume + submission | 0.847 | 0.591 | 0.98 | **0.990** |
+| BBB | journey + volume + submission | **0.855** | 0.574 | 0.98 | 0.985 |
+| GGG | volume | 0.604 | 0.216 | 0.61 | 0.540 |
+| GGG | journey + volume | 0.549 | 0.643 | 0.65 | 0.605 |
+| GGG | **submission** | 0.826 | 0.392 | 0.85 | 0.640 |
+| GGG | volume + submission | 0.781 | 0.392 | 0.84 | 0.640 |
+| GGG | journey + volume + submission | **0.832** | 0.369 | **0.92** | 0.650 |
+
+### Submission is the largest single improvement measured in this repository
+
+Added to the current recommendation, it moves precision **+0.092 on BBB and +0.283 on GGG**, and
+p@100 by +0.06 and +0.27. Nothing else tried here has moved a number that far.
+
+### Four scalars get you almost all of it
+
+`submission` **alone** reaches 0.831 against the best arm's 0.855 on BBB, and 0.826 against 0.832
+on GGG. Four features — `submissionRate`, `missedAll`, `missedFirst`, `meanLateness` — recover
+97–99% of what the full stack achieves, with no graph algorithm at all.
+
+### The decisive arm: what the embedding adds on top of volume + submission
+
+| module | precision | p@100 | p@200 |
+| --- | --- | --- | --- |
+| BBB | +0.008 | **0.000** | **−0.005** |
+| GGG | +0.051 | +0.080 | +0.010 |
+
+**On BBB the embedding contributes nothing** once submission behaviour is present — zero at p@100,
+slightly negative at p@200. On GGG it still adds about 5 precision points and 8 points at p@100.
+
+That difference is explicable rather than random. GGG's first assessment falls on day 61, so only
+9 gradeable assessments exist by day 90 and the submission signal is thin; BBB has 15 due by then.
+**Where submission evidence is rich the embedding is redundant; where it is thin the embedding
+still carries something.** That is a rule for when to pay for the chain build, not a blanket
+verdict either way.
+
+`volume + submission` scoring *below* `submission` alone on GGG (0.781 against 0.826) is within
+noise on 702 holdout students and should not be read as volume hurting.
+
+### What this changes
+
+The day-90 model should be **submission + volume**, with the journey embedding **optional and
+justified per module** — worth its cost only where the first assessment falls late enough that
+submission evidence is sparse by the cutoff. On a module like BBB, a 1.1M-node chain build and a
+billed analytics session buy 0.008 precision and nothing at p@100.
+
+### What this does not establish
+
+The `journey` figures here (0.549 GGG, 0.764 BBB) come from this harness, not from the GDS
+pipeline that produced the committed 0.722 and 0.838. **Cross-harness comparison against those
+committed numbers is not valid**; the five arms above are comparable to each other because they
+share a harness, a split and a seed, and that is the only comparison being claimed.
+
+One seed, one split, two modules.
+
+---
+
 ## What is not done
 
-**Phase 3 — adding these as model features** — has not been run. The open question is whether
-`logClicks + submission` matches `journeyEmbedding + logClicks + submission`; if it does, the
-FastPath embedding contributes nothing once submission behaviour is present.
-
-**Everything is measured against the final outcome on the full dataset**, with no train/test split,
+**Everything in phases 1 and 2 is measured against the final outcome on the full dataset**, with no train/test split,
 because the trigger has no parameters to fit. That is legitimate for a fixed rule and would not be
 for a model.
 
