@@ -286,14 +286,18 @@ is why it is the recommendation.
 ### Amended by assessment submission
 
 The figures above predate [`assessment-submission.md`](assessment-submission.md), which adds four
-submission scalars to the same day-90 model and moves precision **+0.283 on GGG and +0.092 on
-BBB** — the largest single gain recorded in this document. Submission features *alone* reach
-0.826 and 0.831, within 1–3 points of the best arm containing the embedding.
+submission scalars to the same day-90 model. **The combined arm — journey embedding + volume +
+submission — is the top-precision configuration in both modules**, 0.855 on BBB and 0.832 on GGG,
+and it is the recommended day-90 model.
 
-On BBB the embedding then contributes **+0.008 precision and 0.000 at a fixed budget of 100**. On
-GGG it still adds ~5 points, because GGG's first assessment falls on day 61 and its submission
-evidence is thin by the cutoff. So the embedding is worth its chain build only where the first
-assessment lands late; elsewhere it is redundant.
+Adding submission moves precision **+0.283 on GGG and +0.092 on BBB** over the embedding alone,
+the largest single gain recorded in this document.
+
+The embedding's own marginal contribution over volume + submission varies by module: **+0.051 on
+GGG against +0.008 on BBB**. GGG's first assessment falls on day 61, leaving only 9 gradeable
+assessments by the cutoff against BBB's 15 — so the sparser the assessment evidence, the more the
+sequence embedding carries. That is the useful predictor for an unseen module, not a reason to
+drop it.
 
 Those arms were compared within a single harness and are not directly comparable to the
 GDS-derived numbers above.

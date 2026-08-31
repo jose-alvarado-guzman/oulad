@@ -6,11 +6,13 @@ Four arms, one harness, same split and seed:
   journey                       journeyEmbedding + logClicks    current recommendation
   submission                    submission features alone       the challenger
   journey+submission            all three                       the ceiling
-  volume+submission             no embedding                    THE decisive arm
+  volume+submission             no embedding                    isolates the embedding
 
-If volume+submission matches journey+submission, the FastPath embedding contributes
-nothing once submission behaviour is present, and the 1.1M-node chain build and billed
-analytics session stop being justifiable.
+journey+submission is the recommended configuration -- it is the top-precision arm in
+both modules. The volume+submission arm exists to quantify how much of that the
+embedding is responsible for, which varies with how much assessment evidence exists by
+the cutoff: +0.051 precision on GGG (first assessment day 61) against +0.008 on BBB
+(15 assessments due by day 90).
 
 Needs no analytics session: the journey embeddings were streamed to parquet by an earlier
 run, and the submission features come straight from the CSVs.

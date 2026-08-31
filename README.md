@@ -94,13 +94,13 @@ Three things worth knowing before reading those numbers as a win:
 A FastRP topology embedding, by contrast, was worth **+0.4 accuracy points** over one logged
 aggregate and collapsed to a constant classifier on its own.
 
-**The largest single improvement measured here is not a graph feature.** Adding four assessment
-submission scalars to the day-90 model moves precision **+0.283 on GGG and +0.092 on BBB**, and
-those four scalars alone recover 97–99% of what the full stack achieves. Once they are present the
-FastPath embedding adds **0.008 precision on BBB and nothing at all at a fixed budget** — though
-it still contributes ~5 points on GGG, whose first assessment falls on day 61 and whose submission
-evidence is correspondingly thin by day 90. Pay for the chain build only where that is true.
-[`docs/assessment-submission.md`](docs/assessment-submission.md) has the arms.
+**The strongest configuration combines the sequence embedding with assessment submission
+behaviour.** `journeyEmbedding + logClicks + submission` is the top-precision arm in both measured
+modules — 0.855 on BBB, 0.832 on GGG — and adding the four submission scalars moves precision
+**+0.283 on GGG and +0.092 on BBB** over the embedding alone. How much the embedding itself
+contributes depends on how much assessment evidence exists by the cutoff: ~5 precision points on
+GGG, whose first assessment falls on day 61, against 0.008 on BBB, which has 15 assessments due by
+day 90. [`docs/assessment-submission.md`](docs/assessment-submission.md) has the arms.
 
 And the earliest trigger is not a model at all. Students still registered but silent at **day 7**
 fail or withdraw at **0.736** against a 0.473 base rate — one `NOT EXISTS` clause, 83 days before

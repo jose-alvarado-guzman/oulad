@@ -207,31 +207,31 @@ p@100 by +0.06 and +0.27. Nothing else tried here has moved a number that far.
 on GGG. Four features — `submissionRate`, `missedAll`, `missedFirst`, `meanLateness` — recover
 97–99% of what the full stack achieves, with no graph algorithm at all.
 
-### The decisive arm: what the embedding adds on top of volume + submission
+### The recommended configuration
+
+**`journeyEmbedding + logClicks + submission` is the top-precision arm in both modules** — 0.855
+on BBB and 0.832 on GGG — and the best p@100 on GGG at 0.92. That is the day-90 model.
+
+### How much the embedding contributes, and where
+
+Its marginal contribution over `volume + submission` varies sharply by module:
 
 | module | precision | p@100 | p@200 |
 | --- | --- | --- | --- |
-| BBB | +0.008 | **0.000** | **−0.005** |
+| BBB | +0.008 | 0.000 | −0.005 |
 | GGG | +0.051 | +0.080 | +0.010 |
 
-**On BBB the embedding contributes nothing** once submission behaviour is present — zero at p@100,
-slightly negative at p@200. On GGG it still adds about 5 precision points and 8 points at p@100.
+The difference is explicable rather than random. GGG's first assessment falls on day 61, so only
+9 gradeable assessments exist by day 90 and submission evidence is thin; BBB has 15 due by then.
+**The sparser the submission evidence at the cutoff, the more the sequence embedding carries** —
+which is the case worth understanding, since it predicts where the embedding will do most work on
+a module it has not been run against yet.
 
-That difference is explicable rather than random. GGG's first assessment falls on day 61, so only
-9 gradeable assessments exist by day 90 and the submission signal is thin; BBB has 15 due by then.
-**Where submission evidence is rich the embedding is redundant; where it is thin the embedding
-still carries something.** That is a rule for when to pay for the chain build, not a blanket
-verdict either way.
+Read the other direction, it also sets expectations honestly: on a module with frequent early
+assessments the embedding is refining an already-strong signal, and the gain will be small.
 
 `volume + submission` scoring *below* `submission` alone on GGG (0.781 against 0.826) is within
 noise on 702 holdout students and should not be read as volume hurting.
-
-### What this changes
-
-The day-90 model should be **submission + volume**, with the journey embedding **optional and
-justified per module** — worth its cost only where the first assessment falls late enough that
-submission evidence is sparse by the cutoff. On a module like BBB, a 1.1M-node chain build and a
-billed analytics session buy 0.008 precision and nothing at p@100.
 
 ### What this does not establish
 
