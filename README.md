@@ -104,6 +104,13 @@ contributes depends on how much assessment evidence exists by the cutoff: ~5 pre
 GGG, whose first assessment falls on day 61, against 0.008 on BBB, which has 15 assessments due by
 day 90. [`docs/assessment-submission.md`](docs/assessment-submission.md) has the arms.
 
+**The model transfers to modules it never saw, at no cost.** Trained on BBB, persisted to the Aura
+model catalog and applied to EEE in a separate session: on the 2,244 students the trivial
+zero-submission rule does *not* flag, a 100-student worklist is **96% correct against a 26.7% base
+rate** — lift 3.6. A control retrained on EEE itself did no better. So one stored model can serve
+every module, provided the activity-type vocabulary is global and the submission features stay
+scale-free. `notebooks/aga_score_unseen_module.ipynb` runs it.
+
 And the earliest trigger is not a model at all. Students still registered but silent at **day 7**
 fail or withdraw at **0.736** against a 0.473 base rate — one `NOT EXISTS` clause, 83 days before
 the model above can say anything. It does not replace the model, which wins on both precision and

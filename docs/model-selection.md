@@ -302,6 +302,47 @@ drop it.
 Those arms were compared within a single harness and are not directly comparable to the
 GDS-derived numbers above.
 
+### Cross-module transfer works, and costs nothing
+
+The first transfer measurement in this repository. The recommended configuration was trained on
+**BBB**, persisted to the Aura model catalog with `gds.model.store()`, then loaded in a separate
+session and applied to **EEE**, which it had never seen — 2,632 students, 983 at risk, base rate
+0.373.
+
+Over the whole population it scores **precision 1.000 at k = 50, 100 and 200**. That number is
+real and it is not the model's: `missedAll` alone flags 388 EEE students of whom 98.7% fail, so
+any ranker respecting that boolean is perfect on the top 200. The refit-on-target control matching
+it exactly was the tell — both were reading the same column.
+
+**The informative test is the 2,244 students `missedAll` does not flag**, where the base rate is
+0.2674:
+
+| k | precision | recall | lift |
+| --- | --- | --- | --- |
+| 50 | 0.98 | 0.082 | **3.67** |
+| 100 | 0.96 | 0.160 | **3.59** |
+| 200 | 0.93 | 0.310 | **3.48** |
+| 400 | 0.69 | 0.460 | 2.58 |
+
+A hundred-student worklist that is 96% correct where a quarter of students fail, produced by a
+model trained on a different module. Precision collapses past k ≈ 300, so the usable budget is
+about 200.
+
+**Transfer is free.** The refit-on-EEE control reached 0.98 at k = 50 and 100 against the
+transferred model's 1.000 — transferring slightly *beat* retraining locally, which is within noise
+but rules out a transfer penalty. Retraining per module is not required.
+
+Two conditions make this work, and both are easy to lose. The activity-type vocabulary must be
+enumerated globally rather than per module, or `activityTypeId` means different things in
+different modules and the embedding spaces are unrelated. And the submission features must stay
+scale-free — a ratio, two booleans and a day count — so they carry across modules with different
+assessment counts.
+
+**What this does not isolate.** The hard subpopulation still contains `submissionRate` and
+`missedFirst`, so "beyond `missedAll`" is not "beyond submission behaviour". Separating the
+embedding's own contribution on an unseen module would need the Phase 3 arms re-run on EEE. One
+module, one seed.
+
 ### Not recommended
 
 **The whole-journey model**, despite 0.902 holdout accuracy and 0.971 holdout precision. It needs the journey to
