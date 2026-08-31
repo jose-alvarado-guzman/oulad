@@ -338,10 +338,42 @@ different modules and the embedding spaces are unrelated. And the submission fea
 scale-free — a ratio, two booleans and a day count — so they carry across modules with different
 assessment counts.
 
-**What this does not isolate.** The hard subpopulation still contains `submissionRate` and
-`missedFirst`, so "beyond `missedAll`" is not "beyond submission behaviour". Separating the
-embedding's own contribution on an unseen module would need the Phase 3 arms re-run on EEE. One
-module, one seed.
+#### The ablation on EEE, which isolates the embedding
+
+The Phase 3 arms were re-run on EEE, in two settings: **local** (train on EEE, test on an EEE
+holdout) and **transfer** (train on all of BBB, test on all of EEE). Both modules were re-exported
+on the shared global activity-type vocabulary, because the BBB embeddings from the earlier export
+used a per-module one and do not share a space with EEE's.
+
+Transfer, hard population (n = 2,244, base rate 0.2674):
+
+| features | k=50 | k=100 | k=200 |
+| --- | --- | --- | --- |
+| volume | 0.88 | 0.73 | 0.640 |
+| journey + volume | 0.68 | 0.62 | 0.535 |
+| submission | 0.94 | 0.97 | 0.935 |
+| **volume + submission** | **1.00** | **0.98** | **0.945** |
+| journey + volume + submission | 0.96 | 0.94 | 0.940 |
+
+**On EEE the embedding does not contribute — it costs.** Against `volume + submission` it is
+−0.040 / −0.040 / −0.005 transferred and −0.020 / −0.010 / −0.005 locally, and the pattern repeats
+in all four cells (local and transfer × full and hard). More pointedly, `journey + volume` at 0.68
+is *worse than `volume` alone* at 0.88: adding 128 dimensions to a single scalar degrades it.
+
+So the lift of 3.6 the transfer run showed is real, and it belongs to `volume + submission`. The
+sequence embedding is not what carries it on this module.
+
+This also refutes the explanation offered above for the GGG/BBB split. The claim was that the
+embedding earns more where assessment evidence is thin — GGG +0.051 with one assessment by day 90,
+BBB +0.008 with five. EEE has two, which is thin by that logic, and the embedding still loses.
+Whatever distinguishes GGG, assessment density is not it.
+
+**What still holds.** Cross-module transfer works: `volume + submission` trained on BBB scores EEE
+at 1.00 / 0.98 / 0.945 on the hard population, so a single stored model does serve an unseen
+module. The finding here is about which features earn their place, not about whether transfer is
+possible.
+
+One module, one seed, and EEE only.
 
 ### Not recommended
 
