@@ -162,6 +162,21 @@ To validate config edits without a database: load `config.yaml`, then check ever
 - `IN_AGE_GROUP` therefore uses `first-by` to keep the band from the student's **earliest presentation**, giving exactly one `AgeGroup` per student (28,785 rows = 28,785 distinct students). Without it those 72 students got two relationships each, since the `WHERE NOT EXISTS` guard only blocks duplicates to the *same* `AgeGroup` node. `order-cols` is `[code_presentation, age_band]`: `code_presentation` sorts chronologically as a plain string (fixed 4-digit year, `B` before `J`), and the `age_band` tiebreak keeps 685015 deterministic (resolves to `0-35`) instead of row-order dependent.
 - If you add another per-student dimension relationship, check for this first — the pattern is `si.groupby('id_student')[col].nunique(dropna=False) > 1`.
 
+**Activity-type vocabularies differ by module and must be enumerated globally.** GGG has 7
+activity types, BBB 12, EEE 11, out of 20 in the dataset. `activityTypeId` is a *categorical*
+input to FastPath, so a per-module enumeration makes `0` mean `forumng` in GGG and `dualpane` in
+EEE — the embedding spaces are then unrelated and a model trained on one module scores another
+confidently and meaninglessly, with no error anywhere. `aga_fastpath_journeys.ipynb` step 4 and
+`aga_score_unseen_module.ipynb` step 4 both enumerate the whole dataset for this reason. Changing
+either back to a per-module `WHERE c.codeModule = $module` silently breaks the stored model.
+
+**A session model dies with its session; `gds.model.store()` is what persists it.** Step 15 of
+`aga_fastpath_journeys.ipynb` trains the recommended day-90 configuration and stores it as
+`oulad-atrisk-d90`; `aga_score_unseen_module.ipynb` loads it with `gds.model.load()`. Dropping the
+in-session copy during cleanup does not remove the stored one — use `gds.model.delete()` for that.
+Before storing, the notebook checks the model flags a non-zero number of students, because the GDS
+pipeline can return a majority-class classifier and report it as a successful train.
+
 ### A trap that applies to every query in this repository
 
 **pandas NaN arrives in Neo4j as a float NaN, not as null.** `dateUnregistration` on
