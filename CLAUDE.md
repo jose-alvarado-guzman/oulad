@@ -170,6 +170,26 @@ confidently and meaninglessly, with no error anywhere. `aga_fastpath_journeys.ip
 `aga_score_unseen_module.ipynb` step 4 both enumerate the whole dataset for this reason. Changing
 either back to a per-module `WHERE c.codeModule = $module` silently breaks the stored model.
 
+**`sessions.estimate()` under-sizes FastPath — treat it as a floor to raise, not a size to
+trust.** For a 113k-node / 220k-relationship chain it returned `m_2GB`, and FastPath aborted
+mid-run with *"The job ran out of memory"*. The cascade is worse than the cause: no embedding is
+written, so the next cell fails with *"Node properties [journeyEmbedding] do not exist in the
+graph"*, which reads as a pipeline bug rather than a memory one. Both FastPath notebooks now
+override the estimate with a floor by node count (8/16/32 GB). BBB at day 90 is 603,803 nodes and
+needs 16 GB where the estimate said 8.
+
+**Give the Neo4j driver `liveness_check_timeout`.** FastPath and pipeline training leave the driver
+idle for tens of minutes, and a stale pooled connection surfaces as *"Unable to retrieve routing
+information"* or *"Failed to read from defunct connection"* in whichever cell runs next. On one run
+that cell was the cleanup step, which left **597,336 orphan `Interaction` nodes** in the database.
+Both notebooks now pass `liveness_check_timeout=30, max_connection_lifetime=600` and route
+teardown writes through a `db_execute` helper that rebuilds the driver mid-loop rather than
+abandoning a half-finished deletion.
+
+**`ModelDetails` has no `.name`** — the field is `.model_name`. `[m.name for m in
+gds.model.list()]` raises `AttributeError` *after* a successful `store()`, which looks like the
+store failed when it did not.
+
 **A session model dies with its session; `gds.model.store()` is what persists it.** Step 15 of
 `aga_fastpath_journeys.ipynb` trains the recommended day-90 configuration and stores it as
 `oulad-atrisk-d90`; `aga_score_unseen_module.ipynb` loads it with `gds.model.load()`. Dropping the
