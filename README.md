@@ -149,8 +149,11 @@ src/oulad/                   the loading pipeline
   credentials.py             Colab secrets, .env, and the two credential groups
 notebooks/                   one loader, three analytics notebooks
 scripts/zero_activity_rule.py  the early-warning measurement, offline
+scripts/assessment_submission.py       non-submission, offline
+scripts/assessment_submission_graph.py Cypher port plus reconciliation gate
 docs/model-selection.md      what was tried, what it scored, what was wrong
 docs/early-warning-rule.md   the zero-activity rule: sweep, per-module, the query
+docs/assessment-submission.md  non-submission as a trigger: the sharpest signal here
 tests/                       72 offline tests
 requirements.txt             ETL dependencies
 requirements-aga.txt         analytics dependencies (deliberately not a superset)

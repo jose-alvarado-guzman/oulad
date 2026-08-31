@@ -185,6 +185,15 @@ keeps as two rows.
 
 ---
 
+## It is improved by assessment submission
+
+Students this rule flags who then **do** submit an assessment are only **49.7%** at risk, against
+92.6% for those who don't — so the day-7 flag alone substantially over-flags that group. And
+non-submission catches 1,312 students at 91.2% risk that this rule never sees.
+
+[`assessment-submission.md`](assessment-submission.md) has the four-tier triage that results, and
+the trigger's own per-module figures.
+
 ## Caveats
 
 **Four of the flagged population's defining attributes are not demographic — this rule is purely
