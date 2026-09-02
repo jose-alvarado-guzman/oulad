@@ -46,7 +46,6 @@ is safe: node loads `MERGE` and relationship loads are guarded, so a second pass
 | `aga_student_cohorts.ipynb` | node similarity → Louvain engagement cohorts → outcome cross-tab | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jose-alvarado-guzman/oulad/blob/main/notebooks/aga_student_cohorts.ipynb) |
 | `aga_outcome_prediction.ipynb` | FastRP embedding → node classification pipeline | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jose-alvarado-guzman/oulad/blob/main/notebooks/aga_outcome_prediction.ipynb) |
 | `aga_fastpath_journeys.ipynb` | event chain → FastPath sequence embedding → classification, cutoff sweep, and persists the recommended model | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jose-alvarado-guzman/oulad/blob/main/notebooks/aga_fastpath_journeys.ipynb) |
-
 | `aga_score_unseen_module.ipynb` | loads the persisted model and flags at-risk students in a module never trained on | [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jose-alvarado-guzman/oulad/blob/main/notebooks/aga_score_unseen_module.ipynb) |
 
 Each opens its own analytics session and deletes it afterwards. Only the FastPath notebook writes
