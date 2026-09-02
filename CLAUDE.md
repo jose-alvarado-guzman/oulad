@@ -193,6 +193,23 @@ the training return value carries `.predict_stream` and `.drop`. `gds.model.get(
 released with `gds.model.drop(name)` rather than `get(name).drop()`. This is the one API path a
 training notebook never exercises, so it is where `aga_score_unseen_module.ipynb` broke first.
 
+**`drop` and `delete` are not alternatives — they target different copies.** Both take a *name
+string*, so neither accepts the `ModelDetails` that `get()` hands back. `gds.model.drop(name,
+fail_if_missing=False)` releases the entry in the session catalog; `gds.model.delete(name)`
+removes what `store()` persisted, which outlives every session. So `delete` is the wrong repair
+for an `AttributeError` on `get(name).drop()` — it fails on the argument type, and if it did run
+it would destroy `oulad-atrisk-d90` rather than free a session model. Only
+`aga_fastpath_journeys.ipynb` and `aga_score_unseen_module.ipynb` should ever name `delete`, and
+both only mention it in a closing `print`.
+
+**The `except Exception: pass` around a pre-clean is what hid this in four places.** Every
+`get(name).drop()` in a swallowed pre-train cleanup raised on the *first* run and reported
+nothing; the visible symptom arrives one run later, as `train()` refusing a model name that
+should have been free. Step 14's sweep in `aga_fastpath_journeys.ipynb` was the worst case —
+four cutoffs × two feature sets left eight stale names, so a second `RUN_SWEEP` in one session
+failed on all of them. When a cleanup is deliberately best-effort, use `fail_if_missing=False`
+and let a real error through rather than widening the `except`.
+
 **`ModelDetails` has no `.name`** — the field is `.model_name`. `[m.name for m in
 gds.model.list()]` raises `AttributeError` *after* a successful `store()`, which looks like the
 store failed when it did not.
