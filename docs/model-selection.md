@@ -59,6 +59,26 @@ Any model has to beat these. Both computed over the same population the models s
 The third row is the one that matters. A single logged aggregate, given a decent model, reaches
 0.8658 — and it is the reason several apparently good results below are not good at all.
 
+### What `lift` means in the tables below
+
+`lift` is precision divided by the base rate of the population it was measured on —
+`(hit / k) / base_rate` in `aga_score_unseen_module.ipynb`. It is not a separate measurement,
+just precision restated against the floor. At k = 100 on EEE's hard population,
+`0.96 / 0.2674 = 3.59`: the worklist is 3.6× denser in failures than a blind pick of 100
+students.
+
+The column is here because **precision alone does not travel between populations.** 0.93 is
+strong where 27% of students fail and *below chance* where 90% do, so a precision quoted without
+its base rate cannot be compared across modules, cutoffs, or the whole/hard populations of the
+transfer run. A lift of 1.0 means the ranking adds nothing over random selection; below 1.0 it
+is actively worse. That is how the zero-activity rule's early thresholds were read as a negative
+result at lift 1.2–1.55, and it is what exposed the `missedAll` artefact behind the perfect
+precision on the full EEE population.
+
+Lift and recall move in opposite directions as `k` grows — 3.67 down to 2.58 while recall climbs
+0.082 to 0.460 in the transfer table — which is why every result below quotes a `k` budget rather
+than a single number.
+
 ---
 
 ## Method 1 — weighted node similarity and Louvain cohorts
