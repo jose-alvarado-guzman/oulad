@@ -1,15 +1,32 @@
-# Model selection: predicting OULAD module outcome from the graph
+# Model selection for the early-warning system
 
 A record of what was tried, what the numbers were, which conclusions turned out to be wrong,
 and what the wrong ones cost. Every figure here came from a run against a live AuraDB instance
 and an Aura Graph Analytics session; nothing is estimated.
 
+### Where this fits
+
+The [README](../README.md) states two findings and a four-stage timeline. This document is the
+evidence for the last two stages and for both findings:
+
+| stage | signal | documented in |
+| --- | --- | --- |
+| day 7 | still registered, nothing clicked | [`early-warning-rule.md`](early-warning-rule.md) |
+| days 31–75 | no assessment handed in | [`assessment-submission.md`](assessment-submission.md) |
+| **day 90** | **sequence model + click volume + submission** | **here** — [Conclusions](#conclusions) |
+| **any module** | **the same model, applied without retraining** | **here** — [Cross-module transfer](#cross-module-transfer-works-and-costs-nothing) |
+
+It is written in the order the work happened, so early sections recommend things the later ones
+amend. [Conclusions](#conclusions) holds the current recommendation.
+
 ---
 
 ## The question
 
-Given the OULAD graph, can a student's **final result** be predicted from their position in it —
-which materials they engaged with, in what order, and which demographic groups they belong to?
+**Which students are going to fail, and how early can you tell?** Concretely: from what is
+observable about a student by a given day — which materials they engaged with, in what order, how
+intensely — can their **final result** be predicted early enough to act on? The early methods also
+tried each student's demographic neighbourhood; the recommended model uses none of it.
 
 Binary target: `passed = 1` for `Pass` or `Distinction`, `0` for `Fail` or `Withdrawn`, taken
 from `finalResult` on `(:StudentRegistration)-[:CONTAINS_COURSE]->(:Course)`.
@@ -21,7 +38,9 @@ touched at least one material, across 281,277 interactions.
 
 **Assessment relationships.** `WAS_ASSESSED_IN` carries scores, and scores determine
 `finalResult` almost by definition. Predicting an outcome from the marks that produced it is
-leakage in a costume. Only engagement and demographics were used.
+leakage in a costume. Only engagement and demographics were used at first. Whether a student
+submitted at all — behaviour, not a score — was added later, and became the largest single
+improvement measured here; see [`assessment-submission.md`](assessment-submission.md).
 
 Two things sit closer to that line than they look, and both are called out in the notebooks:
 `date_unregistration` on `CONTAINS_COURSE` is effectively the withdrawal label, and interactions
@@ -279,7 +298,18 @@ cutoff is scored against another's hindsight.
 
 ## Conclusions
 
-### Recommended: FastPath journey + volume, cut at day 90
+### Recommended: FastPath journey + volume + submission, cut at day 90
+
+**`journeyEmbedding + logClicks + submission`** — the FastPath sequence embedding, click volume,
+and four scale-free submission features. It is the top-precision configuration in both modules it
+was measured on, **0.832 on GGG and 0.855 on BBB**, and the one stored as `oulad-atrisk-d90` and
+applied to an unseen module below. Those two figures come from the offline harness in
+[`assessment-submission.md`](assessment-submission.md), not from the GDS pipeline, so they are
+comparable with that document's other arms and not with the GDS figures in the next section.
+
+It was reached in two steps, kept below in the order they happened.
+
+### First version: FastPath journey + volume
 
 On holdouts the model never trained on: **precision 0.722 on GGG and 0.838 on BBB**, recall 0.372
 and 0.528. It flags fewer students than a click-volume model and catches more of the failures, in
@@ -303,21 +333,22 @@ included training data; held out it is **0.482** on GGG, close to a coin flip on
 On BBB the same configuration holds out at 0.702. Day 90 is the cutoff that worked in both, which
 is why it is the recommendation.
 
-### Amended by assessment submission
+### Second version: adding assessment submission
 
 The figures above predate [`assessment-submission.md`](assessment-submission.md), which adds four
 submission scalars to the same day-90 model. **The combined arm — journey embedding + volume +
 submission — is the top-precision configuration in both modules**, 0.855 on BBB and 0.832 on GGG,
 and it is the recommended day-90 model.
 
-Adding submission moves precision **+0.283 on GGG and +0.092 on BBB** over the embedding alone,
-the largest single gain recorded in this document.
+Adding submission moves precision **+0.283 on GGG and +0.092 on BBB** over journey + volume in the
+same harness (0.549 and 0.764), the largest single gain recorded in this document.
 
 The embedding's own marginal contribution over volume + submission varies by module: **+0.051 on
 GGG against +0.008 on BBB**. GGG's first assessment falls on day 61, leaving only 9 gradeable
 assessments by the cutoff against BBB's 15 — so the sparser the assessment evidence, the more the
 sequence embedding carries. That is the useful predictor for an unseen module, not a reason to
-drop it.
+drop it. *(Refuted on EEE — see [the ablation below](#the-ablation-on-eee-which-isolates-the-embedding).
+Assessment density does not explain the GGG/BBB difference.)*
 
 Those arms were compared within a single harness and are not directly comparable to the
 GDS-derived numbers above.
@@ -412,9 +443,10 @@ whose numbers needed no holdout correction, so it remains the honest floor to me
 
 ### Before any of this ships
 
-**Validate on the remaining five modules.** GGG and BBB agree on the recommendation and disagree by
+**Validate on the remaining modules.** GGG and BBB agree on the recommendation and disagree by
 12 precision points on its value, which is enough to rule out an artefact and not enough to
-calibrate anything. AAA through FFF are unmeasured.
+calibrate anything. EEE has the transfer and ablation runs above; AAA, CCC, DDD and FFF are
+unmeasured for the model.
 
 **Build the zero-activity rule first — it is measured, and it works.** Students still registered
 and silent at day 7 fail or withdraw at **0.736** against a 0.473 base rate, with no graph
@@ -507,11 +539,14 @@ Worth keeping in any similar exercise:
 | `oulad_data_load.ipynb` | loads the graph | — |
 | `aga_student_cohorts.ipynb` | similarity + Louvain cohorts | `MODULES`, `WEIGHT` |
 | `aga_outcome_prediction.ipynb` | FastRP + classification, with ablation | `MODULE`, `PASS_RESULTS`, `VARIANTS` |
-| `aga_fastpath_journeys.ipynb` | FastPath + classification, with sweep | `MODULE`, `MAX_STUDENTS`, `CUTOFF_DAY`, `RUN_SWEEP`, `SWEEP_CUTOFFS`, `DELETE_CHAIN` |
+| `aga_fastpath_journeys.ipynb` | FastPath + classification, with sweep; stores the day-90 model | `MODULE`, `MAX_STUDENTS`, `CUTOFF_DAY`, `RUN_SWEEP`, `SWEEP_CUTOFFS`, `DELETE_CHAIN` |
+| `aga_score_unseen_module.ipynb` | applies the stored model to an unseen module and scores the worklist | `TARGET_MODULE`, `MODEL_NAME`, `CUTOFF_DAY`, `CONTACT_BUDGET`, `DELETE_CHAIN` |
 
-All three analytics notebooks delete their sessions, and the FastPath one deletes its event chain
-and the two `Student` properties it writes. The graph returns to 66,920 nodes and 8,818,076
-relationships, verified after every run in this record.
+All four analytics notebooks delete their sessions. The FastPath and unseen-module notebooks also
+delete their event chains and the `Student` feature properties they write, so the graph returns to
+66,920 nodes and 8,818,076 relationships, verified after every run in this record. The cohorts
+notebook adds no nodes or relationships but keeps `engagementCohort` on `Student` unless its last
+cell runs with `REVERT = True`.
 
 ### Untested
 

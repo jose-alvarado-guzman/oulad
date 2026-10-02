@@ -1,8 +1,14 @@
-# Assessment submission as an early-warning signal
+# Days 31–75: assessment submission as an early-warning signal
 
 A student who has not submitted a single assessment due so far is at risk. Measured across all
 seven modules, this is **the sharpest single signal in the dataset** — precision 0.74 to 0.93,
 firing 15 to 59 days before the day-90 model.
+
+**Where this fits:** the second stage of the early-warning timeline in the [README](../README.md),
+after the day-7 rule ([`early-warning-rule.md`](early-warning-rule.md)) and before the day-90 model
+([`model-selection.md`](model-selection.md)). It also feeds that model: the four submission
+features in Phase 3 below are part of the recommended day-90 configuration and of the stored model
+that transfers to unseen modules.
 
 All three phases complete: measured offline, ported to Cypher and reconciled exactly, then added
 to the day-90 model. **Adding submission features is the largest single improvement measured in
@@ -230,6 +236,10 @@ a module it has not been run against yet.
 Read the other direction, it also sets expectations honestly: on a module with frequent early
 assessments the embedding is refining an already-strong signal, and the gain will be small.
 
+*(Refuted on EEE, which has only two assessments due by day 90 and still shows no embedding gain —
+see [the EEE ablation](model-selection.md#the-ablation-on-eee-which-isolates-the-embedding).
+Whatever distinguishes GGG, assessment density is not it.)*
+
 `volume + submission` scoring *below* `submission` alone on GGG (0.781 against 0.826) is within
 noise on 702 holdout students and should not be read as volume hurting.
 
@@ -273,4 +283,8 @@ a per-presentation trigger, and its lead time must be quoted per presentation.
 ```bash
 python scripts/assessment_submission.py         # Phase 1, offline, no database
 python scripts/assessment_submission_graph.py   # Phase 2, reconciliation, exits 1 on gate failure
+python scripts/assessment_submission_model.py   # Phase 3, the five arms
 ```
+
+Phase 3 reads FastPath embeddings streamed to parquet by an earlier notebook run (from
+`/tmp/harness`), so it needs that export first.

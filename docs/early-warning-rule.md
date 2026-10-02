@@ -1,8 +1,13 @@
-# The zero-activity rule
+# Day 7: the zero-activity rule
 
 A student who is still registered and has not touched a single material by day *D* is at risk.
 No graph analytics, no embedding, no session — one `NOT EXISTS` clause, weeks before any model
 in this repository can say anything.
+
+**Where this fits:** the first stage of the early-warning timeline in the [README](../README.md) —
+day 7, then the first missed assessment ([`assessment-submission.md`](assessment-submission.md)),
+then the day-90 model and its transfer to unseen modules ([`model-selection.md`](model-selection.md)).
+At day 7 it flags students who fail or withdraw at **0.736** against a 0.473 base rate.
 
 This document is the measurement. It exists because the claim that motivated the rule turned out
 not to support it.
@@ -11,7 +16,7 @@ not to support it.
 
 ## The claim that started this, and why it was wrong
 
-`README.md` and `docs/model-selection.md` both said:
+Earlier versions of `README.md` and `docs/model-selection.md` both said:
 
 > 1,208 of 7,692 students registered in module BBB never touched a material, and 88.1% of them
 > withdrew.
