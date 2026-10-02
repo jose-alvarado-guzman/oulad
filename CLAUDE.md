@@ -4,7 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A one-shot ETL pipeline that downloads the OULAD (Open University Learning Analytics Dataset) zip, reshapes the seven CSVs with pandas, and loads them into Neo4j as a property graph. All graph structure — node labels, relationship types, Cypher, source columns, join keys — lives in `config.yaml`, not in Python. The Python modules are a generic driver over that config.
+An early-warning study on the OULAD (Open University Learning Analytics Dataset): **which students are going to fail or withdraw, and how early can you tell?** Students are scored on behaviour only — activity sequence, click volume, assessment submission — never on assessment scores (leakage) and, in the recommended model, never on demographics.
+
+Two pieces serve that question. A one-shot ETL pipeline (`src/oulad/`) downloads the dataset zip, reshapes the seven CSVs with pandas, and loads them into Neo4j as a property graph; all graph structure — node labels, relationship types, Cypher, source columns, join keys — lives in `config.yaml`, not in Python, and the Python modules are a generic driver over that config. The analysis then runs in the `aga_*` notebooks against Aura Graph Analytics, with offline measurements in `scripts/` and the write-ups in `docs/`. The ETL is infrastructure; the findings are the product.
+
+### How the README frames it
+
+The README leads with the question, not the loader, and states **two findings** in a callout:
+
+1. **Failure can be identified early from behaviour alone**, sharpening over time: day-7 silence (0.736 vs a 0.473 base rate), then the first missed assessment (0.74–0.93 precision, all seven modules), then the day-90 model (0.83–0.86 precision).
+2. **The system transfers to an unseen module without retraining**: trained on BBB, a 100-student EEE worklist is 96% correct against a 26.7% base rate, and a refit-on-EEE control did no better.
+
+Below that sit the timeline graphic, a four-row timeline table, "How the numbers were checked", "Results in detail", Limitations, Responsible use, then Quick start (with prerequisites) and the loader material. Keep that order: the reproduction instructions are deliberately below the findings.
+
+Things to preserve when editing it:
+
+- **The owner chose not to state in the README that the graph adds little value.** The negative ablations (FastRP collapsing to a constant classifier, the embedding costing precision on EEE, submission alone recovering 97–99% of the full stack) stay in `docs/`, which the README links. Don't reintroduce them into the README; don't add claims that the graph *does* carry a result either. Report the measured figures and let the docs hold the ablations.
+- **Two harnesses, not comparable.** 0.722 GGG / 0.838 BBB come from the GDS pipeline; 0.832 / 0.855 (with submission) and 0.549 / 0.764 (without) come from the offline harness in `scripts/assessment_submission_model.py`. Never present one as a step up from the other.
+- **The 26.7% transfer base rate is a subpopulation** — the 2,244 EEE students `missedAll` does not flag. EEE overall is 0.373, and the 100% top-200 precision over all of EEE is the `missedAll` column, not the model.
+- **The timeline rows come from different populations and modules** — the README says to read them as a timeline, not a ranking. Keep that caveat if the table changes.
+- **The timeline graphic is generated, with typed-in figures.** `scripts/readme_timeline.py` writes `imgs/early_warning_timeline_{light,dark}.svg`, which the README switches between with a `<picture>` element. Changing a figure in the README table means changing it in the script and re-running it.
+- `docs/model-selection-process.pdf` is a typeset print of `docs/model-selection.md` made after its last commit; regenerate it if the markdown changes materially, or it goes stale silently.
 
 ## Commands
 
@@ -30,7 +50,7 @@ Virtualenv in use: `~/.virtualenvs/OULAD` (Python 3.13). Dependencies are pinned
 
 **`traitlets>=5.10` is pinned even though nothing here imports it.** `pyneoinstance` pulls in `neo4j-viz`, whose `widget.py` evaluates `traitlets.Instance[...]` while defining a class, so it runs on import; `Instance` only became subscriptable in traitlets 5.10. `neo4j-viz` asks for `traitlets>=5,<6`, which an environment already pinned to 5.7 satisfies, so pip leaves it alone and `import pyneoinstance` dies with `type 'Instance' is not subscriptable`. Colab pins exactly 5.7.1, so this bites there and not locally. `tests/test_environment.py` fails by name rather than letting the third-party import error surface. Note also that `neo4j-rust-ext` is a *hard* requirement of pyneoinstance, not an optional speedup — it arrives whether or not it's named.
 
-Three notebooks live in `notebooks/`. `oulad_data_load.ipynb` runs the ETL; `aga_student_cohorts.ipynb` opens an Aura Graph Analytics session over the loaded graph (node similarity → Louvain cohorts → outcome cross-tab → degree centrality → write-back), with `graphdatascience` pinned exactly because its session API is still in alpha. A session is billed compute separate from AuraDB, so it carries a 2-hour TTL and a delete step.
+Five notebooks live in `notebooks/`. Three of the four analytics notebooks write to the database: `aga_student_cohorts.ipynb` keeps `engagementCohort` on `Student` unless its last cell runs with `REVERT = True`, while `aga_fastpath_journeys.ipynb` and `aga_score_unseen_module.ipynb` build a temporary `Interaction` chain and `Student` feature properties and remove both at the end; only `aga_outcome_prediction.ipynb` is read-only. `oulad_data_load.ipynb` runs the ETL; `aga_student_cohorts.ipynb` opens an Aura Graph Analytics session over the loaded graph (node similarity → Louvain cohorts → outcome cross-tab → degree centrality → write-back), with `graphdatascience` pinned exactly because its session API is still in alpha. A session is billed compute separate from AuraDB, so it carries a 2-hour TTL and a delete step.
 
 Two AGA traps, both of which return plausible zeros rather than failing, and both now
 guarded in the notebook. **A `node_labels` filter induces a subgraph**: passing
